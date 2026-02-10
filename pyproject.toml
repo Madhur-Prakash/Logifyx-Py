@@ -1,10 +1,15 @@
 [project]
 name = "logify"
-version = "0.1.0"
+version = "0.0.1"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.8"
 description = "Modern Python Logging Framework"
+
 authors = [
-  {name="Madhur Prakash", email="madhurprakash2005@gmail.com"}
+  { name = "Madhur Prakash", email = "madhurprakash2005@gmail.com" }
 ]
+
 dependencies = [
   "colorlog",
   "python-json-logger",
@@ -13,6 +18,9 @@ dependencies = [
   "requests",
   "python-dotenv",
 ]
+
+[project.scripts]
+logify = "logify.cli:main"
 
 [build-system]
 requires = ["setuptools", "wheel"]
