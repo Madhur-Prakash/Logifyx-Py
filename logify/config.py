@@ -13,6 +13,10 @@ def load_config(config_file=None):
             config = yaml.safe_load(f)
 
     config["level"] = os.getenv("LOG_LEVEL", config.get("level", "INFO"))
+    config["color"] = os.getenv("LOG_COLOR", str(config.get("color", False))) == "True"
+    config["max_bytes"] = int(os.getenv("LOG_MAX_BYTES", config.get("max_bytes", 10_000_000)))
+    config["backup_count"] = int(os.getenv("LOG_BACKUP_COUNT", config.get("backup_count", 5)))
+    config["log_dir"] = os.getenv("LOG_DIR", config.get("log_dir", "logs"))
     config["file"] = os.getenv("LOG_FILE", config.get("file", "app.log"))
     config["mode"] = os.getenv("LOG_MODE", config.get("mode", "dev"))
     config["json"] = os.getenv("LOG_JSON", str(config.get("json", False))) == "True"

@@ -2,7 +2,10 @@ from logify import Logify
 
 log = Logify(
     name="auth",
-    preset="dev",
+    preset="prod",
+    file="auth.log",
+    log_dir="qq",
+    color=True,
     mask=True
 ).get_logger()
 

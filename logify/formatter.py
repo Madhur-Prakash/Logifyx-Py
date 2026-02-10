@@ -7,14 +7,16 @@ def get_formatter(json_mode=False, color=False):
 
     if json_mode:
         return jsonlogger.JsonFormatter(
-            "%(asctime)s %(name)s %(levelname)s %(message)s"
+            "%(asctime)s %(name)s %(levelname)s %(levelname)s %(message)s"
         )
 
-    fmt = "%(asctime)s | %(name)s | %(levelname)s | %(message)s"
+    fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(pathname)s - %(filename)s - %(lineno)d"
+    datefmt = "%Y-%m-%d %H:%M:%S"
 
     if color:
         return colorlog.ColoredFormatter(
             "%(log_color)s" + fmt,
+            datefmt=datefmt,
             log_colors={
                 "DEBUG": "cyan",
                 "INFO": "green",
@@ -24,4 +26,4 @@ def get_formatter(json_mode=False, color=False):
             }
         )
 
-    return logging.Formatter(fmt)
+    return logging.Formatter(fmt, datefmt=datefmt)

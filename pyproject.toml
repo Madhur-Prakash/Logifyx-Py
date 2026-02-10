@@ -9,6 +9,7 @@ dependencies = [
   "colorlog",
   "python-json-logger",
   "pyyaml",
+  "concurrent-log-handler",
   "requests",
   "python-dotenv",
 ]
