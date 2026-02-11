@@ -3,11 +3,17 @@ import requests
 
 class RemoteHandler(logging.Handler):
 
-    def __init__(self, url):
+    def __init__(self, url, timeout=2, max_failures=3):
         super().__init__()
         self.url = url
+        self.timeout = timeout
+        self.failures = 0
+        self.disabled = False 
+        self.max_failures = max_failures
 
     def emit(self, record):
+        if self.disabled:
+            return
 
         try:
             payload = {
@@ -19,7 +25,20 @@ class RemoteHandler(logging.Handler):
                 "line": record.lineno,
             }
 
-            requests.post(self.url, json=payload, timeout=2)
+            requests.post(
+                self.url,
+                json=payload,
+                timeout=self.timeout
+            )
+
+            # Reset failures on success
+            self.failures = 0
 
         except Exception:
-            pass
+            self.failures += 1
+            self.handleError(record)
+
+            # Auto-disable after N failures
+            if self.failures >= self.max_failures:
+                self.disabled = True
+

@@ -1,6 +1,4 @@
 import logging
-import json
-import os
 from .config import load_config
 from .presets import MODES
 from .formatter import get_formatter
@@ -15,7 +13,7 @@ class Logify:
         name="app",
         mode=None,
         level=None,
-        json=None,
+        json_mode=None,
         remote_url=None,
         log_dir=None,
         mask=True,
@@ -32,37 +30,27 @@ class Logify:
         # update with preset if provided (only if preset is valid, otherwise ignore)
         if mode and mode in MODES:
             self.config.update(MODES[mode])
-            self.config["mode"] = mode  # set mode to match the preset
+            self.config["mode"] = mode
 
-        if log_dir is not None:
-            self.config["log_dir"] = log_dir
+        overrides = {
+            "log_dir": log_dir,
+            "remote_url": remote_url,
+            "backup_count": backup_count,
+            "max_bytes": max_bytes,
+            "file": file,
+            "color": color,
+            "level": level,
+            "json_mode": json_mode,
+        }
 
-        
-        if remote_url:
-            self.config["remote_url"] = remote_url
+        for key, value in overrides.items():
+            if value is not None:
+                self.config[key] = value
 
-        if backup_count:
-            self.config["backup_count"] = backup_count
-
-        if max_bytes:
-            self.config["max_bytes"] = max_bytes
-
-        if file:
-            self.config["file"] = file
-        
-        if color:
-            self.config["color"] = color
-
-        if level:
-            self.config["level"] = level
-
-        if json is not None:
-            self.config["json"] = json
-
-                # Resolve conflicts
-        if self.config.get("json") and self.config.get("color"):
+        # Resolve conflicts
+        if self.config.get("json_mode") and self.config.get("color"):
             # JSON mode disables color
-            self.config["json"] = False # set json to False if both are True, as both cannot be True at the same time
+            self.config["json_mode"] = False # set json_mode to False if both are True, as both cannot be True at the same time
 
 
         self.config["mask"] = mask
@@ -74,6 +62,9 @@ class Logify:
 
         if logger.handlers:
             return logger
+        
+        logger.propagate = False # prevent duplicate logs
+        logging.raiseExceptions = False if self.config.get("mode") == "prod" else True # in prod, don't raise exceptions for logging errors (like file permission issues), just fail silently. In dev, raise them to alert the developer.
 
         logger.setLevel(self.config["level"])
 
@@ -82,14 +73,14 @@ class Logify:
             # Console → allow color (but not file handlers which inherit from StreamHandler)
             if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler):
                 formatter = get_formatter(
-                    self.config.get("json"),
+                    self.config.get("json_mode"),
                     self.config.get("color")
                 )
 
             # File / Remote → no color
             else:
                 formatter = get_formatter(
-                    self.config.get("json"),
+                    self.config.get("json_mode"),
                     False
                 )
 

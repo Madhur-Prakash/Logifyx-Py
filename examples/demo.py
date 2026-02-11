@@ -4,8 +4,9 @@ log = Logify(
     name="auth",
     mode="prod",
     file="auth.log",
-    log_dir="xw",
+    log_dir="logs",
     color=True,
+    remote_url="http://localhost:5000/logs",
     mask=True
 ).get_logger()
 
