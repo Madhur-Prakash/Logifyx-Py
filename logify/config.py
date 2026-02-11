@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-RUNTIME_CONFIG_FILE = ".logify.runtime.json"
 CONFIG_FILE = "logify.yaml"
 
 

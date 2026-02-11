@@ -4,7 +4,7 @@ log = Logify(
     name="auth",
     mode="prod",
     file="auth.log",
-    log_dir="logs",
+    log_dir="xw",
     color=True,
     mask=True
 ).get_logger()

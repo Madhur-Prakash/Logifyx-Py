@@ -1,7 +1,7 @@
 import logging
 import json
 import os
-from .config import load_config, RUNTIME_CONFIG_FILE
+from .config import load_config
 from .presets import MODES
 from .formatter import get_formatter
 from .filters import MaskFilter
@@ -66,20 +66,8 @@ class Logify:
 
 
         self.config["mask"] = mask
-        self._save_runtime_config()
         self.logger = self._build()
 
-    def _save_runtime_config(self):
-        """Save resolved config to a runtime file for CLI access."""
-        try:
-            runtime_config = {
-                "name": self.name,
-                **self.config
-            }
-            with open(RUNTIME_CONFIG_FILE, "w") as f:
-                json.dump(runtime_config, f, indent=4)
-        except Exception:
-            pass  # Silently fail if can't write
 
     def _build(self):
         logger = logging.getLogger(self.name)
