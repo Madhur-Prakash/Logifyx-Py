@@ -2,7 +2,7 @@ from logify import Logify
 
 log = Logify(
     name="auth",
-    preset="prod",
+    mode="prod",
     file="auth.log",
     log_dir="logs",
     color=True,

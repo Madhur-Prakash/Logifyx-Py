@@ -5,6 +5,9 @@ build/
 dist/
 wheels/
 *.egg-info
-
+logs
+.env
+logify.yaml
+.logify.runtime.json
 # Virtual environments
 .venv

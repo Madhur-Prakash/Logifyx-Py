@@ -1,4 +1,4 @@
-PRESETS = {
+MODES = {
     "dev": {
         "level": "DEBUG",
         "color": True,
