@@ -4,14 +4,14 @@ import requests
 
 class RemoteHandler(logging.Handler):
 
-    def __init__(self, url, timeout=2, max_failures=3):
+    def __init__(self, url, timeout=2, max_failures=3, headers=None):
         super().__init__()
         self.url = url
         self.timeout = timeout
         self.failures = 0
         self.disabled = False 
         self.max_failures = max_failures
-
+        self.headers = headers
     def emit(self, record):
         if self.disabled:
             return
@@ -47,5 +47,6 @@ class RemoteHandler(logging.Handler):
         requests.post(
             self.url,
             json=payload,
-            timeout=self.timeout
+            timeout=self.timeout,
+            headers=self.headers
         )
