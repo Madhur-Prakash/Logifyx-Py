@@ -27,7 +27,7 @@ def get_handlers(config):
     handlers.append(console)
 
     if config.get("remote_url"):
-        handlers.append(RemoteHandler(config["remote_url"]))
+        handlers.append(RemoteHandler(config["remote_url"], config['remote_timeout'], config['max_remote_retries'], config['remote_headers']))
 
     # Kafka handler with Avro + Schema Registry
     if config.get("kafka_servers"):

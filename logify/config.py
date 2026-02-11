@@ -34,5 +34,10 @@ def load_config():
     config["kafka_topic"] = os.getenv("LOG_KAFKA_TOPIC", yaml_config.get("LOG_KAFKA_TOPIC", "logs"))
     config["schema_registry_url"] = os.getenv("LOG_SCHEMA_REGISTRY", yaml_config.get("LOG_SCHEMA_REGISTRY"))
     config["schema_compatibility"] = os.getenv("LOG_SCHEMA_COMPATIBILITY", yaml_config.get("LOG_SCHEMA_COMPATIBILITY", "BACKWARD"))
+
+    # remote request settings
+    config["remote_timeout"] = int(os.getenv("LOG_REMOTE_TIMEOUT", yaml_config.get("LOG_REMOTE_TIMEOUT", 5)))
+    config["max_remote_retries"] = int(os.getenv("LOG_REMOTE_RETRIES", yaml_config.get("LOG_REMOTE_RETRIES", 3)))
+    config["remote_headers"] = yaml_config.get("LOG_REMOTE_HEADERS", {"Content-Type": "application/json"})
     
     return config

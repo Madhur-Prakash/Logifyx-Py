@@ -7,9 +7,20 @@ log = Logify(
     log_dir="logs",
     color=True,
     remote_url="http://localhost:5000/logs",
+    max_remote_retries=5,
     mask=True
 ).get_logger()
 
 log.info("Server started")
 log.warning("password=123456 token=abcd123")
+log.warning("password=123456 token=abcd123")
 log.error("Login failed")
+log.error("Login failed")
+log.error("Login failed")
+log.error("Login failed")
+log.error("Login failed")
+log.error("Login failed")
+log.error("Login failed")
+log.warning("password=123456 token=abcd123")
+log.warning("password=123456 token=abcd123")
+log.warning("password=123456 token=abcd123")

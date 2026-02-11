@@ -24,7 +24,10 @@ class Logify:
         kafka_servers=None,
         kafka_topic=None,
         schema_registry_url=None,
-        schema_compatibility=None
+        schema_compatibility=None,
+        remote_timeout=None,
+        max_remote_retries=None,
+        remote_headers=None
     ):
 
         self.name = name
@@ -49,6 +52,9 @@ class Logify:
             "kafka_topic": kafka_topic,
             "schema_registry_url": schema_registry_url,
             "schema_compatibility": schema_compatibility,
+            "remote_timeout": remote_timeout,
+            "max_remote_retries": max_remote_retries,
+            "remote_headers": remote_headers
         }
 
         for key, value in overrides.items():

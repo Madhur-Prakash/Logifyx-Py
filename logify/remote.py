@@ -37,6 +37,7 @@ class RemoteHandler(logging.Handler):
 
             # Auto-disable after N failures
             if self.failures >= self.max_failures:
+                print(f"⚠️ Remote logging disabled after {self.failures} failures")
                 self.disabled = True
 
     async def _send(self, payload):
