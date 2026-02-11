@@ -28,4 +28,11 @@ def load_config():
     config["json_mode"] = os.getenv("LOG_JSON", str(yaml_config.get("LOG_JSON", False))) == "True"
     config["mask"] = os.getenv("LOG_MASK", str(yaml_config.get("LOG_MASK", True))) == "True"
     config["remote_url"] = os.getenv("LOG_REMOTE", yaml_config.get("LOG_REMOTE"))
+    
+    # Kafka settings
+    config["kafka_servers"] = os.getenv("LOG_KAFKA_SERVERS", yaml_config.get("LOG_KAFKA_SERVERS"))
+    config["kafka_topic"] = os.getenv("LOG_KAFKA_TOPIC", yaml_config.get("LOG_KAFKA_TOPIC", "logs"))
+    config["schema_registry_url"] = os.getenv("LOG_SCHEMA_REGISTRY", yaml_config.get("LOG_SCHEMA_REGISTRY"))
+    config["schema_compatibility"] = os.getenv("LOG_SCHEMA_COMPATIBILITY", yaml_config.get("LOG_SCHEMA_COMPATIBILITY", "BACKWARD"))
+    
     return config

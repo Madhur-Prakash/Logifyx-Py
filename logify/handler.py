@@ -1,6 +1,7 @@
 import logging
 from concurrent_log_handler import ConcurrentRotatingFileHandler
 from .remote import RemoteHandler
+from .kafka import KafkaHandler
 import os
 
 
@@ -27,5 +28,14 @@ def get_handlers(config):
 
     if config.get("remote_url"):
         handlers.append(RemoteHandler(config["remote_url"]))
+
+    # Kafka handler with Avro + Schema Registry
+    if config.get("kafka_servers"):
+        handlers.append(KafkaHandler(
+            bootstrap_servers=config["kafka_servers"],
+            topic=config.get("kafka_topic", "logs"),
+            schema_registry_url=config.get("schema_registry_url"),
+            schema_compatibility=config.get("schema_compatibility", "BACKWARD")
+        ))
 
     return handlers

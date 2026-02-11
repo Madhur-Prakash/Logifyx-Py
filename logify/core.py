@@ -20,7 +20,11 @@ class Logify:
         color=None,
         backup_count=None,
         max_bytes=None,
-        file=None
+        file=None,
+        kafka_servers=None,
+        kafka_topic=None,
+        schema_registry_url=None,
+        schema_compatibility=None
     ):
 
         self.name = name
@@ -41,6 +45,10 @@ class Logify:
             "color": color,
             "level": level,
             "json_mode": json_mode,
+            "kafka_servers": kafka_servers,
+            "kafka_topic": kafka_topic,
+            "schema_registry_url": schema_registry_url,
+            "schema_compatibility": schema_compatibility,
         }
 
         for key, value in overrides.items():
