@@ -1,4 +1,6 @@
 import logging
+from typing import Optional
+
 from .config import load_config
 from .presets import MODES
 from .formatter import get_formatter
@@ -8,37 +10,37 @@ from .handler import get_handlers
 
 class Logify:
 
-    def __init__(
-        self,
-        name="app",
-        mode=None,
-        level=None,
-        json_mode=None,
-        remote_url=None,
-        log_dir=None,
-        mask=True,
-        color=None,
-        backup_count=None,
-        max_bytes=None,
-        file=None,
-        kafka_servers=None,
-        kafka_topic=None,
-        schema_registry_url=None,
-        schema_compatibility=None,
-        remote_timeout=None,
-        max_remote_retries=None,
-        remote_headers=None
-    ):
+    def __new__(
+        cls,
+        name: str = "app",
+        mode: Optional[str] = None,
+        level: Optional[int] = None,
+        json_mode: Optional[bool] = None,
+        remote_url: Optional[str] = None,
+        log_dir: Optional[str] = None,
+        mask: bool = True,
+        color: Optional[bool] = None,
+        backup_count: Optional[int] = None,
+        max_bytes: Optional[int] = None,
+        file: Optional[str] = None,
+        kafka_servers: Optional[str] = None,
+        kafka_topic: Optional[str] = None,
+        schema_registry_url: Optional[str] = None,
+        schema_compatibility: Optional[str] = None,
+        remote_timeout: Optional[int] = None,
+        max_remote_retries: Optional[int] = None,
+        remote_headers: Optional[dict] = None,
+    ) -> logging.Logger:
 
-        self.name = name
+        # Load config
+        config = load_config()
 
-        self.config = load_config()  # auto-loads logify.yaml + env
-
-        # update with preset if provided (only if preset is valid, otherwise ignore)
+        # Apply preset
         if mode and mode in MODES:
-            self.config.update(MODES[mode])
-            self.config["mode"] = mode
+            config.update(MODES[mode])
+            config["mode"] = mode
 
+        # Apply overrides
         overrides = {
             "log_dir": log_dir,
             "remote_url": remote_url,
@@ -54,81 +56,58 @@ class Logify:
             "schema_compatibility": schema_compatibility,
             "remote_timeout": remote_timeout,
             "max_remote_retries": max_remote_retries,
-            "remote_headers": remote_headers
+            "remote_headers": remote_headers,
         }
 
         for key, value in overrides.items():
             if value is not None:
-                self.config[key] = value
+                config[key] = value
 
-        # Resolve conflicts
-        if self.config.get("json_mode") and self.config.get("color"):
-            # JSON mode disables color
-            self.config["json_mode"] = False # set json_mode to False if both are True, as both cannot be True at the same time
+        if config.get("json_mode") and config.get("color"):
+            config["json_mode"] = False
 
+        config["mask"] = mask
 
-        self.config["mask"] = mask
-        self.logger = self._build()
+        # 🔥 Call builder method
+        return cls._build(name, config)
 
+    @staticmethod
+    def _build(name: str, config: dict) -> logging.Logger:
+        """
+        Builds and configures the logger.
+        """
 
-    def _build(self):
-        logger = logging.getLogger(self.name)
+        logger = logging.getLogger(name)
 
         if logger.handlers:
             return logger
-        
-        logger.propagate = False # prevent duplicate logs
-        logging.raiseExceptions = False if self.config.get("mode") == "prod" else True # in prod, don't raise exceptions for logging errors (like file permission issues), just fail silently. In dev, raise them to alert the developer.
 
-        logger.setLevel(self.config["level"])
+        logger.propagate = False
+        logging.raiseExceptions = (False if config.get("mode") == "prod" else True)
 
-        for handler in get_handlers(self.config):
+        logger.setLevel(config["level"])
 
-            # Console → allow color (but not file handlers which inherit from StreamHandler)
-            if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler):
+        for handler in get_handlers(config):
+
+            if isinstance(handler, logging.StreamHandler) and not isinstance(
+                handler, logging.FileHandler
+            ):
                 formatter = get_formatter(
-                    self.config.get("json_mode"),
-                    self.config.get("color")
+                    config.get("json_mode"),
+                    config.get("color"),
                 )
-
-            # File / Remote → no color
             else:
                 formatter = get_formatter(
-                    self.config.get("json_mode"),
-                    False
+                    config.get("json_mode"),
+                    False,
                 )
 
-            handler.setLevel(self.config["level"])
+            handler.setLevel(config["level"])
             handler.setFormatter(formatter)
 
-            if self.config.get("mask"):
+            if config.get("mask"):
                 handler.addFilter(MaskFilter())
 
             logger.addHandler(handler)
 
         return logger
-
-    def debug(self, msg, *args, **kwargs):
-        self.logger.debug(msg, *args, **kwargs)
-
-    def info(self, msg, *args, **kwargs):
-        self.logger.info(msg, *args, **kwargs)
-
-    def warning(self, msg, *args, **kwargs):
-        self.logger.warning(msg, *args, **kwargs)
-
-    def error(self, msg, *args, **kwargs):
-        self.logger.error(msg, *args, **kwargs)
-
-    def critical(self, msg, *args, **kwargs):
-        self.logger.critical(msg, *args, **kwargs)
-
-    def exception(self, msg, *args, **kwargs):
-        self.logger.exception(msg, *args, **kwargs)
-
-    def log(self, level, msg, *args, **kwargs):
-        self.logger.log(level, msg, *args, **kwargs)
-
-    def __getattr__(self, name):
-        # Delegate other attribute access to the underlying logger
-        return getattr(self.logger, name)
