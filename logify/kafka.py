@@ -14,7 +14,7 @@ Usage:
         kafka_topic="logs",
         schema_registry_url="http://localhost:8081",
         schema_compatibility="BACKWARD"  # BACKWARD, FORWARD, FULL, NONE
-    ).get_logger()
+    )
 """
 
 import logging

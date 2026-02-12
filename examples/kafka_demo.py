@@ -18,7 +18,7 @@ log = Logify(
     schema_registry_url="http://localhost:8081",
     schema_compatibility="BACKWARD",
     color=True
-).get_logger()
+)
 
 # Send some test logs
 log.info("Application started")

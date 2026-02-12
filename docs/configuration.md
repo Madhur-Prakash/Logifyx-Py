@@ -35,7 +35,7 @@ log = Logify(
     file="myapp.log",
     log_dir="logs",
     mask=True
-).get_logger()
+)
 ```
 
 ### 2. Environment Variables
@@ -197,8 +197,7 @@ Best for: Simple plain-text logging without colors.
 log = Logify(
     name="myapp",
     mode="prod",        # Use production preset
-    level="DEBUG"       # But override to DEBUG level
-).get_logger()
+)
 ```
 
 ---

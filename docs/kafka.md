@@ -41,7 +41,7 @@ log = Logify(
     name="myapp",
     kafka_servers="localhost:9092",
     kafka_topic="app-logs"
-).get_logger()
+)
 
 log.info("This message goes to Kafka!")
 ```
@@ -66,7 +66,7 @@ log = Logify(
     kafka_topic="app-logs",
     schema_registry_url="http://localhost:8081",
     schema_compatibility="BACKWARD"
-).get_logger()
+)
 ```
 
 ### YAML Configuration
@@ -185,7 +185,7 @@ log = Logify(
     kafka_servers="localhost:9092",
     schema_registry_url="http://localhost:8081",
     schema_compatibility="BACKWARD"  # New readers can read old data
-).get_logger()
+)
 ```
 
 **BACKWARD compatibility allows:**
@@ -319,7 +319,7 @@ log = Logify(
     name="myapp",
     kafka_servers="kafka1:9092,kafka2:9092,kafka3:9092",
     kafka_topic="app-logs"
-).get_logger()
+)
 ```
 
 ### Authentication (SASL/SSL)
@@ -418,7 +418,7 @@ log = Logify(
     schema_registry_url="http://localhost:8081",
     schema_compatibility="BACKWARD",
     color=True
-).get_logger()
+)
 
 # Send test logs
 log.info("Application started")

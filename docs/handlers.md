@@ -33,7 +33,7 @@ All handlers are managed automatically by Logify. You just need to provide the c
 log = Logify(
     name="myapp",
     color=True  # Enable colored output
-).get_logger()
+)
 ```
 
 ### Color Mapping
@@ -76,7 +76,7 @@ log = Logify(
     log_dir="logs",         # Directory for logs
     max_bytes=10_000_000,   # 10MB max file size
     backup_count=5          # Keep 5 backup files
-).get_logger()
+)
 ```
 
 ### File Structure
@@ -107,10 +107,25 @@ logs/
 
 ### Features
 
-- **Async delivery**: Uses asyncio for non-blocking sends
+- **Queue-based async**: Uses `QueueHandler` + `QueueListener` for non-blocking sends
+- **Thread-safe**: Internal locking for safe concurrent access
 - **Auto-retry**: Retries on failures
 - **Circuit breaker**: Disables after N consecutive failures
-- **JSON payload**: Structured log data
+- **JSON payload**: Structured log data with exception info
+
+### Architecture
+
+```
+Logify Logger
+    ↓
+QueueHandler (instant, non-blocking)
+    ↓
+QueueListener (background thread)
+    ↓
+RemoteHandler → HTTP POST
+```
+
+This ensures logging never blocks your main application thread.
 
 ### Configuration
 
@@ -118,7 +133,7 @@ logs/
 log = Logify(
     name="myapp",
     remote_url="http://localhost:5000/logs"
-).get_logger()
+)
 ```
 
 Or via config:
@@ -135,11 +150,13 @@ Each log record is sent as a JSON POST request:
 ```json
 {
   "level": "INFO",
-  "message": "User logged in successfully",
-  "service": "auth-service",
-  "time": 1707666000.123456,
+  "message": "2024-02-11 15:30:45 - auth - INFO - User logged in",
+  "logger": "auth-service",
+  "timestamp": 1707666000.123456,
   "file": "/app/auth/login.py",
-  "line": 42
+  "line": 42,
+  "func": "handle_login",
+  "exception": null
 }
 ```
 
@@ -199,7 +216,7 @@ log = Logify(
     kafka_topic="app-logs",
     schema_registry_url="http://localhost:8081",  # Optional
     schema_compatibility="BACKWARD"
-).get_logger()
+)
 ```
 
 Or via config:
@@ -260,7 +277,7 @@ SENSITIVE = [
 ### Example
 
 ```python
-log = Logify(name="auth", mask=True).get_logger()
+log = Logify(name="auth", mask=True)
 
 log.info("Login attempt password=secret123 token=abc")
 # All handlers receive: "Login attempt **** ****"

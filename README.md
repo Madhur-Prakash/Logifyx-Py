@@ -30,6 +30,9 @@
 |  **Zero Config Mode** | Works out of the box with sensible defaults |
 |  **Preset Modes** | Quick setup with `dev`, `prod`, and `simple` presets |
 |  **CLI Tool** | Inspect configuration from command line |
+|  **Global Registration** | Use `setup_logify()` for framework-level integration |
+|  **Context Injection** | Add `request_id`, `user_id` to logs with `ContextLoggerAdapter` |
+|  **Thread-Safe** | Queue-based async architecture for non-blocking remote logging |
 
 ---
 
@@ -55,7 +58,7 @@ pip install aiokafka fastavro
 ```python
 from logify import Logify
 
-log = Logify(name="myapp").get_logger()
+log = Logify(name="myapp")
 
 log.info("Application started")
 log.warning("This is a warning")
@@ -68,10 +71,10 @@ log.error("Something went wrong")
 from logify import Logify
 
 # Development mode: DEBUG level, colored output
-log = Logify(name="myapp", mode="dev").get_logger()
+log = Logify(name="myapp", mode="dev")
 
 # Production mode: INFO level, JSON output
-log = Logify(name="myapp", mode="prod").get_logger()
+log = Logify(name="myapp", mode="prod")
 ```
 
 ### Full Configuration
@@ -82,7 +85,6 @@ from logify import Logify
 log = Logify(
     name="auth-service",
     mode="prod",
-    level="DEBUG",
     file="auth.log",
     log_dir="logs",
     color=True,
@@ -90,11 +92,41 @@ log = Logify(
     remote_url="http://localhost:5000/logs",
     kafka_servers="localhost:9092",
     kafka_topic="app-logs"
-).get_logger()
+)
 
 log.info("Server started on port 8080")
 log.warning("password=secret123 token=abc")  # Masked: **** ****
 log.error("Authentication failed", exc_info=True)
+```
+
+### Global Registration (Recommended for Large Apps)
+
+```python
+from logify import setup_logify, get_logify_logger
+
+# Call once at app startup
+setup_logify()
+
+# Now use get_logify_logger anywhere in your app
+log = get_logify_logger("auth", mode="prod", file="auth.log")
+api_log = get_logify_logger("api", mode="prod", file="api.log")
+```
+
+### Context Injection (Request Tracking)
+
+```python
+from logify import Logify, ContextLoggerAdapter
+
+log = Logify(name="auth", mode="prod")
+
+# Wrap with context for request-scoped logging
+request_log = ContextLoggerAdapter(
+    log,
+    {"request_id": "req-abc123", "user_id": 42}
+)
+
+request_log.info("User authenticated")
+# Output: request_id=req-abc123 user_id=42 | User authenticated
 ```
 
 ---
@@ -109,8 +141,8 @@ log.error("Authentication failed", exc_info=True)
 
 ```python
 # Switch between modes easily
-log = Logify(name="myapp", mode="dev").get_logger()   # Colorful debug logs
-log = Logify(name="myapp", mode="prod").get_logger()  # JSON production logs
+log = Logify(name="myapp", mode="dev")   # Colorful debug logs
+log = Logify(name="myapp", mode="prod")  # JSON production logs
 ```
 
 ---
@@ -180,7 +212,7 @@ export LOG_KAFKA_SERVERS=localhost:9092
 Logify automatically masks sensitive data patterns:
 
 ```python
-log = Logify(name="auth", mask=True).get_logger()
+log = Logify(name="auth", mask=True)
 
 log.info("User login password=secret123 token=abc123")
 # Output: User login **** ****
@@ -204,7 +236,7 @@ Send logs to any HTTP endpoint in real-time:
 log = Logify(
     name="myapp",
     remote_url="http://localhost:5000/logs"
-).get_logger()
+)
 ```
 
 **Payload format:**
@@ -212,10 +244,11 @@ log = Logify(
 {
   "level": "INFO",
   "message": "User logged in",
-  "service": "myapp",
-  "time": 1707666000.123,
+  "logger": "myapp",
+  "timestamp": 1707666000.123,
   "file": "/app/main.py",
-  "line": 42
+  "line": 42,
+  "func": "login"
 }
 ```
 
@@ -236,7 +269,7 @@ log = Logify(
     kafka_topic="app-logs",
     schema_registry_url="http://localhost:8081",
     schema_compatibility="BACKWARD"
-).get_logger()
+)
 
 log.info("This goes to Kafka!")
 ```
