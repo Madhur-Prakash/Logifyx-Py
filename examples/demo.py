@@ -7,7 +7,7 @@ This demo shows multiple usage patterns:
 3. Context injection with ContextLoggerAdapter
 """
 
-from logify import Logify, ContextLoggerAdapter, get_logify_logger, setup_logify
+from logify import Logify, ContextLoggerAdapter, get_logify_logger, setup_logify, flush, shutdown
 
 
 # ========================================
@@ -19,11 +19,14 @@ log = Logify(
     file="auth.log",
     log_dir="logs",
     color=True,
-    # remote_url="http://localhost:5000/logs",  # Uncomment with running server
+    remote_url="http://localhost:5000/logs",  # Uncomment with running server
     max_remote_retries=5,
     mask=True
 )
 
+log.info("Server started")
+log.warning("password=123456 token=abcd123")  # Masked automatically
+log.warning("password=123456 token=abcd123")  # Masked automatically
 log.info("Server started")
 log.warning("password=123456 token=abcd123")  # Masked automatically
 log.error("Login failed")
@@ -58,3 +61,11 @@ request_log = ContextLoggerAdapter(
 request_log.info("User authenticated")
 request_log.warning("Rate limit approaching")
 request_log.error("Payment failed")
+
+
+# ========================================
+# Cleanup: Ensure queued logs are delivered
+# ========================================
+# flush() - waits for queue to drain without stopping listener (use in servers)
+# shutdown() - stops everything (only at actual program exit, called automatically via atexit)
+flush(timeout=5.0)  # Non-blocking drain, keeps listener alive

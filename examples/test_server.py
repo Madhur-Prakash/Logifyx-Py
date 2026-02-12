@@ -9,6 +9,8 @@ def receive_logs():
     print(f"[{data.get('level')}] {data.get('service')}")
     print(f"Message: {data.get('message')}")
     print(f"File: {data.get('file')}:{data.get('line')}")
+    print(f"Function: {data.get('func')}")
+    print(f"Timestamp: {data.get('timestamp')}")
     print(f"{'='*50}")
     return {"status": "received"}, 200
 

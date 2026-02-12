@@ -47,7 +47,7 @@ class RemoteHandler(logging.Handler):
             payload = {
                 "level": record.levelname,
                 "message": log_entry,
-                "logger": record.name,
+                "service": record.name,
                 "timestamp": record.created,
                 "file": record.pathname,
                 "line": record.lineno,

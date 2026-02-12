@@ -1,8 +1,10 @@
 import logging
 from logging.handlers import QueueHandler, QueueListener
+import time
 from typing import Optional, Dict, Any
 import threading
 import queue
+import atexit
 from .config import load_config
 from .presets import MODES
 from .formatter import get_formatter
@@ -14,14 +16,15 @@ from .handler import get_handlers
 _sentinel = object()
 
 # Global queue and listener for async remote/kafka handling
-_log_queue: queue.Queue = queue.Queue(-1)  # Unbounded queue
+_log_queue: queue.Queue = queue.Queue(maxsize=10_00_000)  # Large maxsize to prevent blocking in high-throughput scenarios
 _queue_listener: Optional[QueueListener] = None
 _listener_lock = threading.Lock()
+_atexit_registered = False
 
 
 def _start_queue_listener(handlers: list) -> None:
     """Start background listener for async handlers (remote, kafka)."""
-    global _queue_listener
+    global _queue_listener, _atexit_registered
     with _listener_lock:
         if _queue_listener is None and handlers:
             _queue_listener = QueueListener(
@@ -30,6 +33,22 @@ def _start_queue_listener(handlers: list) -> None:
                 respect_handler_level=True
             )
             _queue_listener.start()
+            
+            # Register atexit handler to flush remaining logs on exit
+            if not _atexit_registered:
+                atexit.register(_flush_and_stop_listener)
+                _atexit_registered = True
+
+
+def _flush_and_stop_listener() -> None:
+    """Flush remaining logs and stop listener on program exit."""
+    global _queue_listener
+    with _listener_lock:
+        if _queue_listener:
+            # Stop the listener - this waits for the thread to finish
+            # processing remaining items and join
+            _queue_listener.stop()
+            _queue_listener = None
 
 
 def _stop_queue_listener() -> None:
@@ -39,6 +58,50 @@ def _stop_queue_listener() -> None:
         if _queue_listener:
             _queue_listener.stop()
             _queue_listener = None
+
+
+def flush(timeout: float = 5.0) -> bool:
+    """
+    Wait for queued logs to be sent without stopping the listener.
+    
+    Use this in servers to ensure logs are delivered during shutdown
+    without blocking normal operation. Non-blocking if queue empties quickly.
+    
+    Args:
+        timeout: Maximum seconds to wait for queue to drain (default 5.0)
+        
+    Returns:
+        True if queue drained within timeout, False otherwise
+        
+    Usage:
+        from logify import flush
+        
+        # In request handler or periodic cleanup
+        flush(timeout=2.0)
+    """
+    start = time.time()
+    while not _log_queue.empty():
+        if time.time() - start > timeout:
+            return False
+        time.sleep(0.01)
+    return True
+
+
+def shutdown() -> None:
+    """
+    Explicitly flush and stop all async logging handlers.
+    
+    Call this before your application exits to ensure all queued remote/kafka
+    logs are delivered. This is automatically registered with atexit, but calling
+    it explicitly ensures all logs are sent before any cleanup code runs.
+    
+    Usage:
+        from logify import shutdown
+        
+        # At end of your application
+        shutdown()
+    """
+    _flush_and_stop_listener()
 
 
 class Logify(logging.Logger):
@@ -286,7 +349,24 @@ class ContextLoggerAdapter(logging.LoggerAdapter):
             return f"{context} | {msg}" if context else msg, kwargs
 
 
-def get_logify_logger(name: str, **kwargs) -> Logify:
+def get_logify_logger(
+        name: str,
+        mode = _sentinel,
+        json_mode = _sentinel,
+        remote_url = _sentinel,
+        log_dir = _sentinel,
+        mask = _sentinel,
+        color = _sentinel,
+        backup_count = _sentinel,
+        max_bytes = _sentinel,
+        file = _sentinel,
+        kafka_servers = _sentinel,
+        kafka_topic = _sentinel,
+        schema_registry_url = _sentinel,
+        schema_compatibility = _sentinel,
+        remote_timeout = _sentinel,
+        max_remote_retries = _sentinel,
+        remote_headers = _sentinel) -> Logify:
     """
     Get or create a Logify logger instance.
     
@@ -307,6 +387,25 @@ def get_logify_logger(name: str, **kwargs) -> Logify:
     Returns:
         Configured Logify instance
     """
+    func_params = {
+        "mode": mode,
+        "json_mode": json_mode,
+        "remote_url": remote_url,
+        "log_dir": log_dir,
+        "mask": mask,
+        "color": color,
+        "backup_count": backup_count,
+        "max_bytes": max_bytes,
+        "file": file,
+        "kafka_servers": kafka_servers,
+        "kafka_topic": kafka_topic,
+        "schema_registry_url": schema_registry_url,
+        "schema_compatibility": schema_compatibility,
+        "remote_timeout": remote_timeout,
+        "max_remote_retries": max_remote_retries,
+        "remote_headers": remote_headers
+    }
+
     logger = logging.getLogger(name)
     
     if not isinstance(logger, Logify):
@@ -316,8 +415,8 @@ def get_logify_logger(name: str, **kwargs) -> Logify:
         )
     
     # Configure only if not already configured (no handlers yet)
-    if not logger.handlers and kwargs:
-        logger.configure(**kwargs)
+    if not logger.handlers and func_params:
+        logger.configure(**func_params)
     
     return logger
 
