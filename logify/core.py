@@ -10,6 +10,9 @@ from .filters import MaskFilter
 from .handler import get_handlers
 
 
+# Sentinel object to detect if a parameter was explicitly passed
+_sentinel = object()
+
 # Global queue and listener for async remote/kafka handling
 _log_queue: queue.Queue = queue.Queue(-1)  # Unbounded queue
 _queue_listener: Optional[QueueListener] = None
@@ -59,26 +62,26 @@ class Logify(logging.Logger):
         self,
         name: str = "app",
         level: int = logging.NOTSET,  # Required by Logger base class
-        mode: Optional[str] = None,
-        json_mode: Optional[bool] = None,
-        remote_url: Optional[str] = None,
-        log_dir: Optional[str] = None,
-        mask: bool = True,
-        color: Optional[bool] = None,
-        backup_count: Optional[int] = None,
-        max_bytes: Optional[int] = None,
-        file: Optional[str] = None,
-        kafka_servers: Optional[list] = None,
-        kafka_topic: Optional[str] = None,
-        schema_registry_url: Optional[str] = None,
-        schema_compatibility: Optional[str] = None,
-        remote_timeout: Optional[int] = None,
-        max_remote_retries: Optional[int] = None,
-        remote_headers: Optional[Dict[str, str]] = None
+        mode = _sentinel,
+        json_mode = _sentinel,
+        remote_url = _sentinel,
+        log_dir = _sentinel,
+        mask = _sentinel,
+        color = _sentinel,
+        backup_count = _sentinel,
+        max_bytes = _sentinel,
+        file = _sentinel,
+        kafka_servers = _sentinel,
+        kafka_topic = _sentinel,
+        schema_registry_url = _sentinel,
+        schema_compatibility = _sentinel,
+        remote_timeout = _sentinel,
+        max_remote_retries = _sentinel,
+        remote_headers = _sentinel
     ):
         # Initialize base Logger first
         super().__init__(name, level)
-        self._configured = False # Flag to prevent reconfiguration
+        self._configured = False  # Flag to prevent reconfiguration
         
         # Skip configuration if already configured (singleton pattern)
         if self._configured:
@@ -87,7 +90,7 @@ class Logify(logging.Logger):
         # Create reload lock
         self._reload_lock = threading.RLock()
         
-        # Store init params for later configure() calls
+        # Store init params (only those explicitly provided)
         self._init_params = {
             "mode": mode,
             "json_mode": json_mode,
@@ -107,9 +110,12 @@ class Logify(logging.Logger):
             "remote_headers": remote_headers
         }
         
+        # Filter out sentinel values - keep only explicitly provided params
+        provided = {k: v for k, v in self._init_params.items() if v is not _sentinel}
+        
         # Auto-configure if any params provided (direct instantiation)
-        if any(v is not None for k, v in self._init_params.items() if k != "mask"):
-            self.configure(**self._init_params)
+        if provided:
+            self.configure(**provided)
 
     def configure(
         self,
@@ -235,16 +241,18 @@ class Logify(logging.Logger):
                 self.removeHandler(handler)
                 handler.close()
 
-            # Reset configured flag and rebuild
+            # Reset configured flag and rebuild with provided params
             self._configured = False
-            self.configure(**self._init_params)
+            provided = {k: v for k, v in self._init_params.items() if v is not _sentinel}
+            self.configure(**provided)
 
     def reload_from_file(self) -> None:
         """Reload configuration from logify.yaml file."""
         with self._reload_lock:
             self.config = load_config()
             self._configured = False
-            self.configure(**self._init_params)
+            provided = {k: v for k, v in self._init_params.items() if v is not _sentinel}
+            self.configure(**provided)
 
 
 class ContextLoggerAdapter(logging.LoggerAdapter):
