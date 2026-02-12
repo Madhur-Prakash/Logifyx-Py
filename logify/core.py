@@ -1,6 +1,6 @@
 import logging
 from typing import Optional
-
+import threading
 from .config import load_config
 from .presets import MODES
 from .formatter import get_formatter
@@ -8,45 +8,48 @@ from .filters import MaskFilter
 from .handler import get_handlers
 
 
-class Logify:
+class Logify(logging.Logger):
 
-    def __new__(
-        cls,
-        name: str = "app",
-        mode: Optional[str] = None,
-        level: Optional[int] = None,
-        json_mode: Optional[bool] = None,
-        remote_url: Optional[str] = None,
-        log_dir: Optional[str] = None,
-        mask: bool = True,
-        color: Optional[bool] = None,
-        backup_count: Optional[int] = None,
-        max_bytes: Optional[int] = None,
-        file: Optional[str] = None,
-        kafka_servers: Optional[str] = None,
-        kafka_topic: Optional[str] = None,
-        schema_registry_url: Optional[str] = None,
-        schema_compatibility: Optional[str] = None,
-        remote_timeout: Optional[int] = None,
-        max_remote_retries: Optional[int] = None,
-        remote_headers: Optional[dict] = None,
-    ) -> logging.Logger:
+    def __init__(
+        self,
+        name="app",
+        mode=None,
+        level=None,
+        json_mode=None,
+        remote_url=None,
+        log_dir=None,
+        mask=True,
+        color=None,
+        backup_count=None,
+        max_bytes=None,
+        file=None,
+        kafka_servers=None,
+        kafka_topic=None,
+        schema_registry_url=None,
+        schema_compatibility=None,
+        remote_timeout=None,
+        max_remote_retries=None,
+        remote_headers=None
+    ):
 
-        # Load config
-        config = load_config()
+        # Create reload lock FIRST
+        self._reload_lock = threading.RLock()  # RLock safer than Lock
+
+        # Load base config
+        self.config = load_config()
 
         # Apply preset
         if mode and mode in MODES:
-            config.update(MODES[mode])
-            config["mode"] = mode
+            self.config.update(MODES[mode])
+            self.config["mode"] = mode
 
-        # Apply overrides
         overrides = {
             "log_dir": log_dir,
             "remote_url": remote_url,
             "backup_count": backup_count,
             "max_bytes": max_bytes,
             "file": file,
+            "mask": mask,
             "color": color,
             "level": level,
             "json_mode": json_mode,
@@ -56,58 +59,76 @@ class Logify:
             "schema_compatibility": schema_compatibility,
             "remote_timeout": remote_timeout,
             "max_remote_retries": max_remote_retries,
-            "remote_headers": remote_headers,
+            "remote_headers": remote_headers
         }
 
+        # Apply overrides
         for key, value in overrides.items():
             if value is not None:
-                config[key] = value
+                self.config[key] = value
 
-        if config.get("json_mode") and config.get("color"):
-            config["json_mode"] = False
+        # Conflict resolution
+        if self.config.get("json_mode") and self.config.get("color"):
+            # JSON mode disables color
+            self.config["json_mode"] = False # set json_mode to False if both are True, as both cannot be True at the same time
 
-        config["mask"] = mask
+        final_level = self.config.get("level", logging.INFO)
 
-        # 🔥 Call builder method
-        return cls._build(name, config)
+        super().__init__(name, final_level)
 
-    @staticmethod
-    def _build(name: str, config: dict) -> logging.Logger:
-        """
-        Builds and configures the logger.
-        """
+        if logging.getLogger(self.name).handlers:
+            return
 
-        logger = logging.getLogger(name)
+        self.propagate = False # prevent duplicate logs
+        logging.raiseExceptions = False if self.config.get("mode") == "prod" else True # in prod, don't raise exceptions for logging errors (like file permission issues), just fail silently. In dev, raise them to alert the developer.
 
-        if logger.handlers:
-            return logger
+        self._build()
 
-        logger.propagate = False
-        logging.raiseExceptions = (False if config.get("mode") == "prod" else True)
+    def _build(self) -> None:
 
-        logger.setLevel(config["level"])
-
-        for handler in get_handlers(config):
+        for handler in get_handlers(self.config):
 
             if isinstance(handler, logging.StreamHandler) and not isinstance(
                 handler, logging.FileHandler
             ):
                 formatter = get_formatter(
-                    config.get("json_mode"),
-                    config.get("color"),
+                    self.config.get("json_mode"),
+                    self.config.get("color"),
                 )
             else:
                 formatter = get_formatter(
-                    config.get("json_mode"),
+                    self.config.get("json_mode"),
                     False,
                 )
 
-            handler.setLevel(config["level"])
+            handler.setLevel(self.level)
             handler.setFormatter(formatter)
 
-            if config.get("mask"):
+            if self.config.get("mask"):
                 handler.addFilter(MaskFilter())
 
-            logger.addHandler(handler)
+            self.addHandler(handler)
 
-        return logger
+    def reload(self):
+        with self._reload_lock:
+            # Remove existing handlers safely
+            for handler in self.handlers[:]:
+                self.removeHandler(handler)
+                handler.close()
+
+            # Update logger level
+            self.setLevel(self.config.get("level", logging.INFO))
+
+            # Reapply propagation & exception behavior
+            self.propagate = False
+            logging.raiseExceptions = (False if self.config.get("mode") == "prod" else True)
+
+            # Rebuild handlers
+            self._build()
+
+
+    def reload_from_file(self):
+        with self._reload_lock:
+            self.config = load_config()
+            self.reload()
+
