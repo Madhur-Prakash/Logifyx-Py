@@ -54,7 +54,6 @@ class Logify(logging.Logger):
         log = get_logify_logger("auth", mode="prod")
     """
     
-    _configured: bool = False
 
     def __init__(
         self,
@@ -79,6 +78,7 @@ class Logify(logging.Logger):
     ):
         # Initialize base Logger first
         super().__init__(name, level)
+        self._configured = False # Flag to prevent reconfiguration
         
         # Skip configuration if already configured (singleton pattern)
         if self._configured:
