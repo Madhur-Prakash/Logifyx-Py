@@ -1,12 +1,39 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
 [project]
 name = "logify"
 version = "0.0.1"
-description = "Modern Python Logging Framework"
+description = "Modern Python Logging Framework with async remote and Kafka support"
 readme = "README.md"
 requires-python = ">=3.8"
-license = "MIT"
+license = { text = "MIT" }
+
 authors = [
   { name = "Madhur Prakash", email = "madhurprakash2005@gmail.com" }
+]
+
+keywords = [
+  "logging",
+  "python-logging",
+  "async-logging",
+  "kafka-logging",
+  "structured-logging",
+  "json-logging"
+]
+
+classifiers = [
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: System :: Logging"
 ]
 
 dependencies = [
@@ -26,9 +53,65 @@ dev = [
   "flask",
 ]
 
-[tool.setuptools]
+[project.urls]
+Homepage = "https://github.com/Madhur-Prakash/Logify-Py"
+Documentation = "https://github.com/Madhur-Prakash/Logify-Py"
+Source = "https://github.com/Madhur-Prakash/Logify-Py"
+Issues = "https://github.com/Madhur-Prakash/Logify-Py/issues"
 
-[tool.setuptools.packages]
+[project.scripts]
+logify = "logify.cli:main"
 
 [tool.setuptools.packages.find]
-exclude = ["logs*", "tests*"]
+where = ["."]
+include = ["logify*"]
+exclude = ["tests*", "logs*", "examples*"]
+
+
+# ---------------------------
+# Formatting (Black)
+# ---------------------------
+[tool.black]
+line-length = 100
+target-version = ["py38", "py39", "py310", "py311", "py312"]
+
+
+# ---------------------------
+# Static Typing (MyPy)
+# ---------------------------
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+
+# ---------------------------
+# Pytest Config
+# ---------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+]
+
+
+# ---------------------------
+# Coverage
+# ---------------------------
+[tool.coverage.run]
+source = ["logify"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
