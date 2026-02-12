@@ -81,10 +81,9 @@ class Logify(logging.Logger):
     ):
         # Initialize base Logger first
         super().__init__(name, level)
-        self._configured = False  # Flag to prevent reconfiguration
         
-        # Skip configuration if already configured (singleton pattern)
-        if self._configured:
+        # Skip if already configured (handlers exist = already set up)
+        if self.handlers:
             return
             
         # Create reload lock
@@ -141,7 +140,8 @@ class Logify(logging.Logger):
         Configure the logger with all options.
         Called automatically on direct instantiation, or manually via get_logify_logger().
         """
-        if self._configured:
+        # Skip if already configured (handlers exist)
+        if self.handlers:
             return self
             
         # Load base config
@@ -187,7 +187,6 @@ class Logify(logging.Logger):
         logging.raiseExceptions = self.config.get("mode") != "prod"
 
         self._build()
-        self._configured = True
         
         return self
 
@@ -241,16 +240,23 @@ class Logify(logging.Logger):
                 self.removeHandler(handler)
                 handler.close()
 
-            # Reset configured flag and rebuild with provided params
-            self._configured = False
+            # Rebuild with provided params (handlers cleared, so configure() will run)
             provided = {k: v for k, v in self._init_params.items() if v is not _sentinel}
             self.configure(**provided)
 
     def reload_from_file(self) -> None:
         """Reload configuration from logify.yaml file."""
         with self._reload_lock:
+            # Stop queue listener
+            _stop_queue_listener()
+            
+            # Remove existing handlers
+            for handler in self.handlers[:]:
+                self.removeHandler(handler)
+                handler.close()
+            
+            # Reload config and rebuild
             self.config = load_config()
-            self._configured = False
             provided = {k: v for k, v in self._init_params.items() if v is not _sentinel}
             self.configure(**provided)
 
@@ -309,8 +315,8 @@ def get_logify_logger(name: str, **kwargs) -> Logify:
             "Call logging.setLoggerClass(Logify) at app startup."
         )
     
-    # Configure only if not already configured
-    if not logger._configured and kwargs:
+    # Configure only if not already configured (no handlers yet)
+    if not logger.handlers and kwargs:
         logger.configure(**kwargs)
     
     return logger

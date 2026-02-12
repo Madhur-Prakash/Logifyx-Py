@@ -3,7 +3,6 @@ import logging
 
 class Logify(logging.Logger):
     config: Dict[str, Any]
-    _configured: bool
 
     def __init__(
         self,
