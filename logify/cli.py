@@ -7,20 +7,20 @@ from .config import load_config, CONFIG_FILE
 def main():
 
     parser = argparse.ArgumentParser(
-        prog="logify",
-        description="Logify CLI Tool"
+        prog="logifyx",
+        description="Logifyx CLI Tool"
     )
 
     parser.add_argument(
         "--config",
         action="store_true",
-        help="Show resolved Logify configuration (from logify.yaml + env)"
+        help="Show resolved Logifyx configuration (from logifyx.yaml + env)"
     )
 
     parser.add_argument(
         "--runtime",
         action="store_true",
-        help="Show runtime config (from last Logify instance)"
+        help="Show runtime config (from last Logifyx instance)"
     )
 
     args = parser.parse_args()
@@ -29,7 +29,7 @@ def main():
     if args.config:
         config = load_config()
         yaml_status = "found" if os.path.exists(CONFIG_FILE) else "not found"
-        print(f"\n📦 Logify Configuration (logify.yaml: {yaml_status}):\n")
+        print(f"\n📦 Logifyx Configuration (logifyx.yaml: {yaml_status}):\n")
         print(json.dumps(config, indent=4))
         return
 

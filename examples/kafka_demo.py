@@ -7,10 +7,10 @@ Prerequisites:
 3. View logs: python examples/kafka_consumer.py
 """
 
-from logify import Logify
+from logifyx import Logifyx
 
 # Create logger with Kafka streaming
-log = Logify(
+log = Logifyx(
     name="kafka-demo",
     kafka_servers="localhost:9092",
     kafka_topic="app-logs",

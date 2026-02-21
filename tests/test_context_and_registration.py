@@ -11,8 +11,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from logify import Logify, ContextLoggerAdapter, get_logify_logger, setup_logify
-from logify.core import _stop_queue_listener
+from logifyx import Logifyx, ContextLoggerAdapter, get_logify_logger, setup_logify
+from logifyx.core import _stop_queue_listener
 
 
 @pytest.fixture(autouse=True)
@@ -38,7 +38,7 @@ class TestContextLoggerAdapter:
 
     def test_context_prepended_to_message(self, temp_log_dir):
         """Test that context is prepended to log messages in text mode."""
-        log = Logify(
+        log = Logifyx(
             name="test_context",
             mode="dev",
             log_dir=temp_log_dir,
@@ -69,7 +69,7 @@ class TestContextLoggerAdapter:
         
     def test_context_with_multiple_fields(self, temp_log_dir):
         """Test context with multiple fields."""
-        log = Logify(
+        log = Logifyx(
             name="test_multi_context",
             mode="dev",
             log_dir=temp_log_dir,
@@ -96,7 +96,7 @@ class TestContextLoggerAdapter:
         
     def test_empty_context(self, temp_log_dir):
         """Test adapter with empty context."""
-        log = Logify(
+        log = Logifyx(
             name="test_empty_context",
             mode="dev",
             log_dir=temp_log_dir,
@@ -111,7 +111,7 @@ class TestContextLoggerAdapter:
         
     def test_context_adapter_log_levels(self, temp_log_dir):
         """Test that all log levels work with adapter."""
-        log = Logify(
+        log = Logifyx(
             name="test_adapter_levels",
             mode="dev",
             log_dir=temp_log_dir,
@@ -132,13 +132,13 @@ class TestGlobalRegistration:
     """Tests for setup_logify and get_logify_logger."""
 
     def test_setup_logify_sets_logger_class(self):
-        """Test that setup_logify sets Logify as the logger class."""
+        """Test that setup_logify sets Logifyx as the logger class."""
         setup_logify()
         
-        # Now logging.getLogger should return Logify instances
+        # Now logging.getLogger should return Logifyx instances
         log = logging.getLogger("test_setup")
         
-        assert isinstance(log, Logify)
+        assert isinstance(log, Logifyx)
         
     def test_get_logify_logger_requires_setup(self):
         """Test that get_logify_logger raises error without setup."""
@@ -147,10 +147,10 @@ class TestGlobalRegistration:
         with pytest.raises(TypeError) as exc_info:
             get_logify_logger("test_no_setup")
             
-        assert "LoggerClass not set to Logify" in str(exc_info.value)
+        assert "LoggerClass not set to Logifyx" in str(exc_info.value)
         
     def test_get_logify_logger_returns_logify(self, temp_log_dir):
-        """Test that get_logify_logger returns Logify instance."""
+        """Test that get_logify_logger returns Logifyx instance."""
         setup_logify()
         
         log = get_logify_logger(
@@ -160,7 +160,7 @@ class TestGlobalRegistration:
             file="get_logger.log"
         )
         
-        assert isinstance(log, Logify)
+        assert isinstance(log, Logifyx)
         assert log.name == "test_get_logger"
         
     def test_get_logify_logger_singleton(self, temp_log_dir):
@@ -217,14 +217,14 @@ class TestMultipleLoggers:
 
     def test_multiple_loggers_different_names(self, temp_log_dir):
         """Test creating multiple loggers with different names."""
-        log1 = Logify(
+        log1 = Logifyx(
             name="logger1",
             mode="dev",
             log_dir=temp_log_dir,
             file="logger1.log"
         )
         
-        log2 = Logify(
+        log2 = Logifyx(
             name="logger2",
             mode="prod",
             log_dir=temp_log_dir,
@@ -237,14 +237,14 @@ class TestMultipleLoggers:
         
     def test_hierarchical_logger_names(self, temp_log_dir):
         """Test hierarchical logger names."""
-        parent = Logify(
+        parent = Logifyx(
             name="myapp",
             mode="dev",
             log_dir=temp_log_dir,
             file="parent.log"
         )
         
-        child = Logify(
+        child = Logifyx(
             name="myapp.module",
             mode="dev",
             log_dir=temp_log_dir,

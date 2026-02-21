@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Test runner script for Logify.
+Test runner script for Logifyx.
 
 Usage:
     python run_tests.py              # Run all tests
@@ -25,7 +25,7 @@ def main():
     if len(sys.argv) > 1:
         # Check for special flags
         if "--cov" in sys.argv:
-            cmd.extend(["--cov=logify", "--cov-report=term-missing"])
+            cmd.extend(["--cov=logifyx", "--cov-report=term-missing"])
             sys.argv.remove("--cov")
         
         # Add remaining args

@@ -7,8 +7,8 @@ wheels/
 *.egg-info
 logs
 .env
-logify.yaml
-.logify.runtime.json
+logifyx.yaml
+.logifyx.runtime.json
 # Virtual environments
 .venv
 .pytest_cache

@@ -12,7 +12,7 @@ import pytest
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from logify.core import _stop_queue_listener
+from logifyx.core import _stop_queue_listener
 
 
 @pytest.fixture(autouse=True)

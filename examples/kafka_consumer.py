@@ -31,7 +31,7 @@ async def consume_logs():
                 try:
                     import fastavro
                     import io
-                    from logify.kafka import LOG_SCHEMA_V1
+                    from logifyx.kafka import LOG_SCHEMA_V1
                     from fastavro.schema import parse_schema
                     
                     # Skip 5 bytes (1 magic + 4 schema ID)

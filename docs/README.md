@@ -1,6 +1,6 @@
-# 📖 Logify Documentation
+# 📖 Logifyx Documentation
 
-Welcome to the Logify documentation. Choose a guide to get started:
+Welcome to the Logifyx documentation. Choose a guide to get started:
 
 ---
 
@@ -17,7 +17,7 @@ Welcome to the Logify documentation. Choose a guide to get started:
 
 ## Quick Links
 
-- **New to Logify?** Start with the [README](../README.md) for a quick overview
+- **New to Logifyx?** Start with the [README](../README.md) for a quick overview
 - **Setting up config?** See [Configuration Guide](configuration.md)
 - **Need Kafka?** Check [Kafka Streaming](kafka.md)
 - **Debugging?** Use [CLI Reference](cli.md)
@@ -26,5 +26,5 @@ Welcome to the Logify documentation. Choose a guide to get started:
 
 ## Getting Help
 
-- [GitHub Issues](https://github.com/Madhur-Prakash/Logify-py/issues)
-- [GitHub Discussions](https://github.com/Madhur-Prakash/Logify-py/discussions)
+- [GitHub Issues](https://github.com/Madhur-Prakash/Logifyx-py/issues)
+- [GitHub Discussions](https://github.com/Madhur-Prakash/Logifyx-py/discussions)

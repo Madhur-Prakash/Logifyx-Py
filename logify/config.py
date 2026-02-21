@@ -5,13 +5,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-CONFIG_FILE = "logify.yaml"
+CONFIG_FILE = "logifyx.yaml"
 
 
 def load_config():
     yaml_config = {}
 
-    # Auto-load logify.yaml if it exists
+    # Auto-load logifyx.yaml if it exists
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE) as f:
             yaml_config = yaml.safe_load(f) or {}

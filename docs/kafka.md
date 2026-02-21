@@ -6,7 +6,7 @@ Stream your logs to Apache Kafka with Avro serialization and Schema Registry sup
 
 ## Overview
 
-Logify's Kafka handler provides:
+Logifyx's Kafka handler provides:
 
 - **Async Producer**: Non-blocking log delivery using `aiokafka`
 - **Avro Serialization**: Efficient binary format with schema validation
@@ -35,9 +35,9 @@ docker-compose up -d
 ### 3. Use Kafka Logging
 
 ```python
-from logify import Logify
+from logifyx import Logifyx
 
-log = Logify(
+log = Logifyx(
     name="myapp",
     kafka_servers="localhost:9092",
     kafka_topic="app-logs"
@@ -60,7 +60,7 @@ log.info("This message goes to Kafka!")
 ### Python Configuration
 
 ```python
-log = Logify(
+log = Logifyx(
     name="myapp",
     kafka_servers="localhost:9092",
     kafka_topic="app-logs",
@@ -72,7 +72,7 @@ log = Logify(
 ### YAML Configuration
 
 ```yaml
-# logify.yaml
+# logifyx.yaml
 LOG_KAFKA_SERVERS: localhost:9092
 LOG_KAFKA_TOPIC: app-logs
 LOG_SCHEMA_REGISTRY: http://localhost:8081
@@ -98,7 +98,7 @@ Logs are serialized using this Avro schema (v1):
 {
   "type": "record",
   "name": "LogRecord",
-  "namespace": "com.logify.logs",
+  "namespace": "com.logifyx.logs",
   "doc": "Log record schema v1",
   "fields": [
     {
@@ -180,7 +180,7 @@ When using Schema Registry, you can enforce schema evolution rules:
 ### Recommended: BACKWARD Compatibility
 
 ```python
-log = Logify(
+log = Logifyx(
     name="myapp",
     kafka_servers="localhost:9092",
     schema_registry_url="http://localhost:8081",
@@ -284,7 +284,7 @@ async def consume_logs():
             except:
                 # Handle Avro (skip 5-byte header)
                 import fastavro, io
-                from logify.kafka import LOG_SCHEMA_V1
+                from logifyx.kafka import LOG_SCHEMA_V1
                 from fastavro.schema import parse_schema
                 
                 data = msg.value[5:] if msg.value[0] == 0 else msg.value
@@ -315,7 +315,7 @@ docker exec -it kafka kafka-console-consumer \
 ### Multiple Kafka Brokers
 
 ```python
-log = Logify(
+log = Logifyx(
     name="myapp",
     kafka_servers="kafka1:9092,kafka2:9092,kafka3:9092",
     kafka_topic="app-logs"
@@ -327,7 +327,7 @@ log = Logify(
 The Kafka handler supports additional kwargs passed to `aiokafka`:
 
 ```python
-from logify import Logify
+from logifyx import Logifyx
 
 # Note: For advanced Kafka config, configure the handler directly
 # or extend the KafkaHandler class
@@ -409,9 +409,9 @@ pip install aiokafka fastavro
 Kafka Logging Demo - examples/kafka_demo.py
 """
 
-from logify import Logify
+from logifyx import Logifyx
 
-log = Logify(
+log = Logifyx(
     name="kafka-demo",
     kafka_servers="localhost:9092",
     kafka_topic="app-logs",

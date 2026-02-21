@@ -74,7 +74,7 @@ def flush(timeout: float = 5.0) -> bool:
         True if queue drained within timeout, False otherwise
         
     Usage:
-        from logify import flush
+        from logifyx import flush
         
         # In request handler or periodic cleanup
         flush(timeout=2.0)
@@ -96,7 +96,7 @@ def shutdown() -> None:
     it explicitly ensures all logs are sent before any cleanup code runs.
     
     Usage:
-        from logify import shutdown
+        from logifyx import shutdown
         
         # At end of your application
         shutdown()
@@ -104,19 +104,19 @@ def shutdown() -> None:
     _flush_and_stop_listener()
 
 
-class Logify(logging.Logger):
+class Logifyx(logging.Logger):
     """
     Production-grade logging class extending logging.Logger.
     
     Usage:
         # Option 1: Direct instantiation
-        log = Logify("auth", mode="prod", remote_url="http://...")
+        log = Logifyx("auth", mode="prod", remote_url="http://...")
         
         # Option 2: Global registration (recommended)
         import logging
-        from logify import Logify, get_logify_logger
+        from logifyx import Logifyx, get_logify_logger
         
-        logging.setLoggerClass(Logify)
+        logging.setLoggerClass(Logifyx)
         log = get_logify_logger("auth", mode="prod")
     """
     
@@ -198,7 +198,7 @@ class Logify(logging.Logger):
         max_remote_retries: Optional[int] = None,
         remote_headers: Optional[Dict[str, str]] = None,
         level: Optional[int] = None
-    ) -> "Logify":
+    ) -> "Logifyx":
         """
         Configure the logger with all options.
         Called automatically on direct instantiation, or manually via get_logify_logger().
@@ -308,7 +308,7 @@ class Logify(logging.Logger):
             self.configure(**provided)
 
     def reload_from_file(self) -> None:
-        """Reload configuration from logify.yaml file."""
+        """Reload configuration from logifyx.yaml file."""
         with self._reload_lock:
             # Stop queue listener
             _stop_queue_listener()
@@ -329,7 +329,7 @@ class ContextLoggerAdapter(logging.LoggerAdapter):
     Adapter for injecting structured context (request_id, user_id, etc.) into logs.
     
     Usage:
-        log = Logify("auth", mode="prod")
+        log = Logifyx("auth", mode="prod")
         request_log = ContextLoggerAdapter(log, {"request_id": "abc123", "user_id": 42})
         request_log.info("Login successful")
         
@@ -366,26 +366,26 @@ def get_logify_logger(
         schema_compatibility = _sentinel,
         remote_timeout = _sentinel,
         max_remote_retries = _sentinel,
-        remote_headers = _sentinel) -> Logify:
+        remote_headers = _sentinel) -> Logifyx:
     """
-    Get or create a Logify logger instance.
+    Get or create a Logifyx logger instance.
     
     This ensures singleton-per-name behavior and proper configuration.
     
     Usage:
-        # First, set Logify as the logger class (once at app startup)
+        # First, set Logifyx as the logger class (once at app startup)
         import logging
-        logging.setLoggerClass(Logify)
+        logging.setLoggerClass(Logifyx)
         
         # Then get loggers
         log = get_logify_logger("auth", mode="prod", remote_url="http://...")
     
     Args:
         name: Logger name (singleton per name)
-        **kwargs: Configuration options passed to Logify.configure()
+        **kwargs: Configuration options passed to Logifyx.configure()
     
     Returns:
-        Configured Logify instance
+        Configured Logifyx instance
     """
     func_params = {
         "mode": mode,
@@ -408,10 +408,10 @@ def get_logify_logger(
 
     logger = logging.getLogger(name)
     
-    if not isinstance(logger, Logify):
+    if not isinstance(logger, Logifyx):
         raise TypeError(
-            "LoggerClass not set to Logify. "
-            "Call logging.setLoggerClass(Logify) at app startup."
+            "LoggerClass not set to Logifyx. "
+            "Call logging.setLoggerClass(Logifyx) at app startup."
         )
     
     # Configure only if not already configured (no handlers yet)
@@ -423,14 +423,14 @@ def get_logify_logger(
 
 def setup_logify() -> None:
     """
-    Register Logify as the global logger class.
+    Register Logifyx as the global logger class.
     Call this once at application startup.
     
     Usage:
-        from logify import setup_logify, get_logify_logger
+        from logifyx import setup_logify, get_logify_logger
         
         setup_logify()
         log = get_logify_logger("myapp", mode="prod")
     """
-    logging.setLoggerClass(Logify)
+    logging.setLoggerClass(Logifyx)
 

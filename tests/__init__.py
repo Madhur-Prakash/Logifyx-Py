@@ -1,1 +1,1 @@
-# Logify Test Suite
+# Logifyx Test Suite

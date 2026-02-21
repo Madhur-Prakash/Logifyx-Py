@@ -10,8 +10,8 @@ from unittest.mock import patch, MagicMock, Mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from logify.remote import RemoteHandler
-from logify.formatter import get_formatter
+from logifyx.remote import RemoteHandler
+from logifyx.formatter import get_formatter
 
 
 class TestRemoteHandler:
@@ -50,7 +50,7 @@ class TestRemoteHandler:
         handler.disabled = False
         assert handler.disabled is False
         
-    @patch('logify.remote.requests.post')
+    @patch('logifyx.remote.requests.post')
     def test_successful_emit(self, mock_post):
         """Test successful log emission."""
         mock_response = MagicMock()
@@ -79,7 +79,7 @@ class TestRemoteHandler:
         assert call_args.kwargs["json"]["level"] == "INFO"
         assert call_args.kwargs["json"]["logger"] == "test"
         
-    @patch('logify.remote.requests.post')
+    @patch('logifyx.remote.requests.post')
     def test_emit_when_disabled(self, mock_post):
         """Test that emit does nothing when disabled."""
         handler = RemoteHandler(url="http://example.com/logs")
@@ -100,7 +100,7 @@ class TestRemoteHandler:
         # requests.post should not be called
         mock_post.assert_not_called()
         
-    @patch('logify.remote.requests.post')
+    @patch('logifyx.remote.requests.post')
     def test_failure_tracking(self, mock_post):
         """Test that failures are tracked and handler disables after max."""
         mock_post.side_effect = Exception("Connection failed")
@@ -128,7 +128,7 @@ class TestRemoteHandler:
         
         assert handler.disabled is True
         
-    @patch('logify.remote.requests.post')
+    @patch('logifyx.remote.requests.post')
     def test_failure_counter_resets_on_success(self, mock_post):
         """Test that failure counter resets on successful send."""
         handler = RemoteHandler(
@@ -213,7 +213,7 @@ class TestFormatter:
 class TestHandlerPayload:
     """Tests for RemoteHandler payload structure."""
 
-    @patch('logify.remote.requests.post')
+    @patch('logifyx.remote.requests.post')
     def test_payload_structure(self, mock_post):
         """Test the structure of the log payload."""
         mock_post.return_value = MagicMock()

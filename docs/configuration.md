@@ -1,6 +1,6 @@
 # ⚙️ Configuration Guide
 
-Logify provides flexible configuration through multiple sources with a clear priority order.
+Logifyx provides flexible configuration through multiple sources with a clear priority order.
 
 ---
 
@@ -11,11 +11,11 @@ Settings are resolved in this order (highest to lowest priority):
 ```
 1. Python Code Arguments  (highest)
 2. Environment Variables
-3. logify.yaml file
+3. logifyx.yaml file
 4. Default Values         (lowest)
 ```
 
-This means you can set defaults in `logify.yaml`, override them with environment variables for different environments, and still override specific values in code.
+This means you can set defaults in `logifyx.yaml`, override them with environment variables for different environments, and still override specific values in code.
 
 ---
 
@@ -23,12 +23,12 @@ This means you can set defaults in `logify.yaml`, override them with environment
 
 ### 1. Python Code (Highest Priority)
 
-Pass configuration directly to the `Logify` constructor:
+Pass configuration directly to the `Logifyx` constructor:
 
 ```python
-from logify import Logify
+from logifyx import Logifyx
 
-log = Logify(
+log = Logifyx(
     name="myapp",
     level="DEBUG",
     color=True,
@@ -66,7 +66,7 @@ LOG_MASK=True
 
 ### 3. YAML Configuration File
 
-Create a `logify.yaml` file in your project root:
+Create a `logifyx.yaml` file in your project root:
 
 ```yaml
 # Logging Settings
@@ -152,7 +152,7 @@ LOG_SCHEMA_COMPATIBILITY: BACKWARD
 
 ## Preset Modes
 
-Logify includes preset configurations for common use cases:
+Logifyx includes preset configurations for common use cases:
 
 ### `dev` Mode (Development)
 
@@ -194,7 +194,7 @@ Best for: Simple plain-text logging without colors.
 
 ```python
 # Preset with overrides
-log = Logify(
+log = Logifyx(
     name="myapp",
     mode="prod",        # Use production preset
 )
@@ -207,7 +207,7 @@ log = Logify(
 ### Development Setup
 
 ```yaml
-# logify.yaml
+# logifyx.yaml
 LOG_MODE: dev
 LOG_LEVEL: DEBUG
 LOG_COLOR: True
@@ -216,7 +216,7 @@ LOG_COLOR: True
 ### Production Setup
 
 ```yaml
-# logify.yaml
+# logifyx.yaml
 LOG_MODE: prod
 LOG_LEVEL: INFO
 LOG_JSON: True
@@ -240,12 +240,12 @@ LOG_SCHEMA_REGISTRY=http://schema-registry.internal:8081
 Use the CLI to inspect resolved configuration:
 
 ```bash
-logify --config
+logifyx --config
 ```
 
 Output:
 ```
-📦 Logify Configuration (logify.yaml: found):
+📦 Logifyx Configuration (logifyx.yaml: found):
 
 {
     "level": "DEBUG",

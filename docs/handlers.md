@@ -1,6 +1,6 @@
 # 📂 Handlers Reference
 
-Logify uses multiple output handlers to write logs to different destinations simultaneously. This document explains each handler and how to configure them.
+Logifyx uses multiple output handlers to write logs to different destinations simultaneously. This document explains each handler and how to configure them.
 
 ---
 
@@ -13,7 +13,7 @@ Logify uses multiple output handlers to write logs to different destinations sim
 | [Remote HTTP Handler](#remote-http-handler) | POST to HTTP endpoint | When `remote_url` set |
 | [Kafka Handler](#kafka-handler) | Stream to Kafka topic | When `kafka_servers` set |
 
-All handlers are managed automatically by Logify. You just need to provide the configuration.
+All handlers are managed automatically by Logifyx. You just need to provide the configuration.
 
 ---
 
@@ -30,7 +30,7 @@ All handlers are managed automatically by Logify. You just need to provide the c
 ### Configuration
 
 ```python
-log = Logify(
+log = Logifyx(
     name="myapp",
     color=True  # Enable colored output
 )
@@ -70,7 +70,7 @@ log = Logify(
 ### Configuration
 
 ```python
-log = Logify(
+log = Logifyx(
     name="myapp",
     file="myapp.log",       # Log file name
     log_dir="logs",         # Directory for logs
@@ -116,7 +116,7 @@ logs/
 ### Architecture
 
 ```
-Logify Logger
+Logifyx Logger
     ↓
 QueueHandler (instant, non-blocking)
     ↓
@@ -130,7 +130,7 @@ This ensures logging never blocks your main application thread.
 ### Configuration
 
 ```python
-log = Logify(
+log = Logifyx(
     name="myapp",
     remote_url="http://localhost:5000/logs"
 )
@@ -139,7 +139,7 @@ log = Logify(
 Or via config:
 
 ```yaml
-# logify.yaml
+# logifyx.yaml
 LOG_REMOTE: http://log-server:5000/logs
 ```
 
@@ -210,7 +210,7 @@ The handler automatically disables itself after 3 consecutive failures to preven
 ### Configuration
 
 ```python
-log = Logify(
+log = Logifyx(
     name="myapp",
     kafka_servers="localhost:9092",
     kafka_topic="app-logs",
@@ -222,7 +222,7 @@ log = Logify(
 Or via config:
 
 ```yaml
-# logify.yaml
+# logifyx.yaml
 LOG_KAFKA_SERVERS: localhost:9092
 LOG_KAFKA_TOPIC: app-logs
 LOG_SCHEMA_REGISTRY: http://localhost:8081
@@ -237,7 +237,7 @@ Logs are serialized using this Avro schema:
 {
   "type": "record",
   "name": "LogRecord",
-  "namespace": "com.logify.logs",
+  "namespace": "com.logifyx.logs",
   "fields": [
     {"name": "level", "type": "string"},
     {"name": "message", "type": "string"},
@@ -277,7 +277,7 @@ SENSITIVE = [
 ### Example
 
 ```python
-log = Logify(name="auth", mask=True)
+log = Logifyx(name="auth", mask=True)
 
 log.info("Login attempt password=secret123 token=abc")
 # All handlers receive: "Login attempt **** ****"

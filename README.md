@@ -1,6 +1,6 @@
 <div align="center">
 
-# Logify
+# Logifyx
 
 ![Python](https://img.shields.io/badge/Python-3.8+-blue?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green)
@@ -64,13 +64,13 @@
 ## Installation
 
 ```bash
-pip install logify
+pip install logifyx
 ```
 
 For Kafka streaming support:
 
 ```bash
-pip install logify[kafka]
+pip install logifyx[kafka]
 ```
 
 **Dependencies:**
@@ -90,9 +90,9 @@ pip install logify[kafka]
 ### Basic Usage (Zero Config)
 
 ```python
-from logify import Logify
+from logifyx import Logifyx
 
-log = Logify(name="myapp")
+log = Logifyx(name="myapp")
 
 log.info("Application started")
 log.warning("This is a warning")
@@ -102,21 +102,21 @@ log.error("Something went wrong")
 ### With Presets
 
 ```python
-from logify import Logify
+from logifyx import Logifyx
 
 # Development mode: DEBUG level, colored output
-log = Logify(name="myapp", mode="dev")
+log = Logifyx(name="myapp", mode="dev")
 
 # Production mode: INFO level, JSON output
-log = Logify(name="myapp", mode="prod")
+log = Logifyx(name="myapp", mode="prod")
 ```
 
 ### Full Configuration
 
 ```python
-from logify import Logify
+from logifyx import Logifyx
 
-log = Logify(
+log = Logifyx(
     name="auth-service",
     mode="prod",
     file="auth.log",
@@ -136,7 +136,7 @@ log.error("Authentication failed", exc_info=True)
 ### Global Registration (Recommended for Large Apps)
 
 ```python
-from logify import setup_logify, get_logify_logger
+from logifyx import setup_logify, get_logify_logger
 
 # Call once at app startup
 setup_logify()
@@ -149,9 +149,9 @@ api_log = get_logify_logger("api", mode="prod", file="api.log")
 ### Context Injection (Request Tracking)
 
 ```python
-from logify import Logify, ContextLoggerAdapter
+from logifyx import Logifyx, ContextLoggerAdapter
 
-log = Logify(name="auth", mode="prod")
+log = Logifyx(name="auth", mode="prod")
 
 # Wrap with context for request-scoped logging
 request_log = ContextLoggerAdapter(
@@ -166,9 +166,9 @@ request_log.info("User authenticated")
 ### Graceful Shutdown
 
 ```python
-from logify import Logify, flush, shutdown
+from logifyx import Logifyx, flush, shutdown
 
-log = Logify(name="myapp", remote_url="http://localhost:5000/logs")
+log = Logifyx(name="myapp", remote_url="http://localhost:5000/logs")
 
 log.info("Processing request")
 
@@ -183,7 +183,7 @@ shutdown()
 
 ## 🎯 Preset Modes
 
-Logify includes preset configurations for common use cases:
+Logifyx includes preset configurations for common use cases:
 
 | Mode | Level | Color | JSON | Use Case |
 |------|-------|-------|------|----------|
@@ -193,13 +193,13 @@ Logify includes preset configurations for common use cases:
 
 ```python
 # Development mode
-log = Logify(name="myapp", mode="dev")   # Colorful debug logs
+log = Logifyx(name="myapp", mode="dev")   # Colorful debug logs
 
 # Production mode
-log = Logify(name="myapp", mode="prod")  # JSON production logs
+log = Logifyx(name="myapp", mode="prod")  # JSON production logs
 
 # Simple mode
-log = Logify(name="myapp", mode="simple")  # Plain text logs
+log = Logifyx(name="myapp", mode="simple")  # Plain text logs
 ```
 
 ### Preset Details
@@ -235,18 +235,18 @@ log = Logify(name="myapp", mode="simple")  # Plain text logs
 
 ## Configuration
 
-Logify supports multiple configuration sources with clear priority:
+Logifyx supports multiple configuration sources with clear priority:
 
 ```
-Python Code Arguments > Environment Variables > logify.yaml > Defaults
+Python Code Arguments > Environment Variables > logifyx.yaml > Defaults
 ```
 
 ### 1. Python Code (Highest Priority)
 
 ```python
-from logify import Logify
+from logifyx import Logifyx
 
-log = Logify(
+log = Logifyx(
     name="myapp",
     level="DEBUG",
     color=True,
@@ -288,7 +288,7 @@ Here's a complete `.env` file with all available options:
 
 ```env
 # ===========================================
-# Logify Configuration - Sample .env File
+# Logifyx Configuration - Sample .env File
 # ===========================================
 
 # ---- Core Settings ----
@@ -323,7 +323,7 @@ LOG_SCHEMA_COMPATIBILITY=BACKWARD       # BACKWARD, FORWARD, FULL, NONE
 
 ### 3. YAML Configuration File
 
-Create a `logify.yaml` file in your project root:
+Create a `logifyx.yaml` file in your project root:
 
 ```yaml
 # Logging Settings
@@ -413,7 +413,7 @@ LOG_SCHEMA_COMPATIBILITY: BACKWARD
 
 ## Handlers
 
-Logify writes logs to multiple destinations simultaneously:
+Logifyx writes logs to multiple destinations simultaneously:
 
 | Handler | Description | Auto-enabled |
 |---------|-------------|--------------|
@@ -437,7 +437,7 @@ Logify writes logs to multiple destinations simultaneously:
 | CRITICAL | Bold Red |
 
 ```python
-log = Logify(name="myapp", color=True)
+log = Logifyx(name="myapp", color=True)
 ```
 
 #### Example Output
@@ -460,7 +460,7 @@ log = Logify(name="myapp", color=True)
 - **Auto-creates directory**: Creates log directory if it doesn't exist
 
 ```python
-log = Logify(
+log = Logifyx(
     name="myapp",
     file="myapp.log",       # Log file name
     log_dir="logs",         # Directory for logs
@@ -496,7 +496,7 @@ logs/
 #### Architecture
 
 ```
-Logify Logger
+Logifyx Logger
     ↓
 QueueHandler (instant, non-blocking)
     ↓
@@ -506,7 +506,7 @@ RemoteHandler → HTTP POST
 ```
 
 ```python
-log = Logify(
+log = Logifyx(
     name="myapp",
     remote_url="http://localhost:5000/logs",
     remote_timeout=5,
@@ -557,10 +557,10 @@ See [Kafka Streaming](#-kafka-streaming) section for detailed documentation.
 
 ## Sensitive Data Masking
 
-Logify automatically masks sensitive data patterns in all handlers:
+Logifyx automatically masks sensitive data patterns in all handlers:
 
 ```python
-log = Logify(name="auth", mask=True)
+log = Logifyx(name="auth", mask=True)
 
 log.info("User login password=secret123 token=abc123")
 # Output: User login **** ****
@@ -584,9 +584,9 @@ log.info("User login password=secret123 token=abc123")
 Use `ContextLoggerAdapter` to inject structured context (request_id, user_id, etc.) into logs:
 
 ```python
-from logify import Logify, ContextLoggerAdapter
+from logifyx import Logifyx, ContextLoggerAdapter
 
-log = Logify(name="auth", mode="prod")
+log = Logifyx(name="auth", mode="prod")
 
 # Wrap logger with context for request-scoped logging
 request_log = ContextLoggerAdapter(
@@ -681,9 +681,9 @@ docker-compose up -d
 #### 3. Use Kafka Logging
 
 ```python
-from logify import Logify
+from logifyx import Logifyx
 
-log = Logify(
+log = Logifyx(
     name="myapp",
     kafka_servers="localhost:9092",
     kafka_topic="app-logs",
@@ -702,7 +702,7 @@ Logs are serialized using this Avro schema:
 {
   "type": "record",
   "name": "LogRecord",
-  "namespace": "com.logify.logs",
+  "namespace": "com.logifyx.logs",
   "doc": "Log record schema v1",
   "fields": [
     {"name": "level", "type": "string", "doc": "Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"},
@@ -764,7 +764,7 @@ async def consume_logs():
             except:
                 # Handle Avro (skip 5-byte header)
                 import fastavro, io
-                from logify.kafka import LOG_SCHEMA_V1
+                from logifyx.kafka import LOG_SCHEMA_V1
                 from fastavro.schema import parse_schema
                 
                 data = msg.value[5:] if msg.value[0] == 0 else msg.value
@@ -792,7 +792,7 @@ docker exec -it kafka kafka-console-consumer \
 #### Multiple Brokers
 
 ```python
-log = Logify(
+log = Logifyx(
     name="myapp",
     kafka_servers="kafka1:9092,kafka2:9092,kafka3:9092",
     kafka_topic="app-logs"
@@ -811,22 +811,22 @@ log = Logify(
 
 ## CLI Tool
 
-Inspect your Logify configuration from the command line.
+Inspect your Logifyx configuration from the command line.
 
 ### Commands
 
-#### `logify --config`
+#### `logifyx --config`
 
 Display the resolved configuration from all sources:
 
 ```bash
-logify --config
+logifyx --config
 ```
 
 **Output:**
 
 ```
-Logify Configuration (logify.yaml: found):
+Logifyx Configuration (logifyx.yaml: found):
 
 {
     "level": "DEBUG",
@@ -849,37 +849,37 @@ Logify Configuration (logify.yaml: found):
 }
 ```
 
-#### `logify --help`
+#### `logifyx --help`
 
 ```bash
-logify --help
+logifyx --help
 ```
 
 ### Use Cases
 
 ```bash
 # Verify config before deployment
-logify --config
+logifyx --config
 
 # Check specific settings
-logify --config | grep kafka
+logifyx --config | grep kafka
 
 # Compare environments
-logify --config > config-snapshot.json
+logifyx --config > config-snapshot.json
 ```
 
 ---
 
 ## API Reference
 
-### `Logify` Class
+### `Logifyx` Class
 
 Main logger class extending `logging.Logger`.
 
 ```python
-from logify import Logify
+from logifyx import Logifyx
 
-log = Logify(
+log = Logifyx(
     name: str = "app",                    # Logger name
     level: int = logging.NOTSET,          # Log level
     mode: str = None,                     # Preset mode (dev/prod/simple)
@@ -907,31 +907,31 @@ log = Logify(
 |--------|-------------|
 | `configure(**kwargs)` | Configure the logger with all options |
 | `reload()` | Reload logger configuration and handlers |
-| `reload_from_file()` | Reload configuration from `logify.yaml` |
+| `reload_from_file()` | Reload configuration from `logifyx.yaml` |
 
 ### `ContextLoggerAdapter` Class
 
 Adapter for injecting structured context into logs.
 
 ```python
-from logify import ContextLoggerAdapter
+from logifyx import ContextLoggerAdapter
 
 adapter = ContextLoggerAdapter(
-    logger: Logify,              # Base logger
+    logger: Logifyx,              # Base logger
     extra: dict                  # Context dictionary
 )
 ```
 
 ### `get_logify_logger()` Function
 
-Get or create a configured Logify logger instance.
+Get or create a configured Logifyx logger instance.
 
 ```python
-from logify import get_logify_logger
+from logifyx import get_logify_logger
 
 log = get_logify_logger(
     name: str,                   # Logger name (singleton per name)
-    **kwargs                     # Same options as Logify constructor
+    **kwargs                     # Same options as Logifyx constructor
 )
 ```
 
@@ -939,10 +939,10 @@ log = get_logify_logger(
 
 ### `setup_logify()` Function
 
-Register Logify as the global logger class.
+Register Logifyx as the global logger class.
 
 ```python
-from logify import setup_logify
+from logifyx import setup_logify
 
 setup_logify()  # Call once at app startup
 ```
@@ -952,7 +952,7 @@ setup_logify()  # Call once at app startup
 Wait for queued logs to be sent without stopping the listener.
 
 ```python
-from logify import flush
+from logifyx import flush
 
 success = flush(timeout: float = 5.0)  # Returns True if drained
 ```
@@ -962,7 +962,7 @@ success = flush(timeout: float = 5.0)  # Returns True if drained
 Explicitly flush and stop all async logging handlers.
 
 ```python
-from logify import shutdown
+from logifyx import shutdown
 
 shutdown()  # Call before application exits
 ```
@@ -976,10 +976,10 @@ shutdown()  # Call before application exits
 ### Basic Demo
 
 ```python
-from logify import Logify, ContextLoggerAdapter, get_logify_logger, setup_logify, flush
+from logifyx import Logifyx, ContextLoggerAdapter, get_logify_logger, setup_logify, flush
 
 # Direct instantiation
-log = Logify(
+log = Logifyx(
     name="auth",
     mode="dev",
     file="auth.log",
@@ -1010,9 +1010,9 @@ flush(timeout=5.0)
 ### Kafka Demo
 
 ```python
-from logify import Logify
+from logifyx import Logifyx
 
-log = Logify(
+log = Logifyx(
     name="kafka-demo",
     kafka_servers="localhost:9092",
     kafka_topic="app-logs",
@@ -1038,9 +1038,9 @@ log.info("Application finished")
 ## Project Structure
 
 ```
-logify/
+logifyx/
 ├── __init__.py      # Package exports
-├── core.py          # Main Logify class
+├── core.py          # Main Logifyx class
 ├── config.py        # Configuration loading
 ├── handler.py       # Handler factory
 ├── formatter.py     # Log formatters
@@ -1075,6 +1075,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 **Made with ❤️ by [Madhur Prakash](https://github.com/madhurprakash)**
 
-[Report Bug](https://github.com/Madhur-Prakash/Logify-Py/issues) • [Request Feature](https://github.com/Madhur-Prakash/Logify-Py/issues)
+[Report Bug](https://github.com/Madhur-Prakash/Logifyx-Py/issues) • [Request Feature](https://github.com/Madhur-Prakash/Logifyx-Py/issues)
 
 </div>

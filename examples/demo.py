@@ -1,5 +1,5 @@
 """
-Logify Demo - Production-Grade Logging
+Logifyx Demo - Production-Grade Logging
 
 This demo shows multiple usage patterns:
 1. Direct instantiation (simple)
@@ -7,13 +7,13 @@ This demo shows multiple usage patterns:
 3. Context injection with ContextLoggerAdapter
 """
 
-from logify import Logify, ContextLoggerAdapter, get_logify_logger, setup_logify, flush, shutdown
+from logifyx import Logifyx, ContextLoggerAdapter, get_logify_logger, setup_logify, flush, shutdown
 
 
 # ========================================
 # Option 1: Direct Instantiation (Simple)
 # ========================================
-log = Logify(
+log = Logifyx(
     name="auth",
     mode="dev",
     file="auth.log",

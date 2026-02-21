@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 
 [project]
-name = "logify"
+name = "logifyx"
 version = "0.0.1"
 readme = "README.md"
 license = "MIT"
@@ -35,7 +35,6 @@ classifiers = [
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
-  "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
   "Topic :: System :: Logging"
 ]
@@ -58,17 +57,17 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Madhur-Prakash/Logify-Py"
-Documentation = "https://github.com/Madhur-Prakash/Logify-Py"
-Source = "https://github.com/Madhur-Prakash/Logify-Py"
-Issues = "https://github.com/Madhur-Prakash/Logify-Py/issues"
+Homepage = "https://github.com/Madhur-Prakash/logifyx-Py"
+Documentation = "https://github.com/Madhur-Prakash/logifyx-Py"
+Source = "https://github.com/Madhur-Prakash/logifyx-Py"
+Issues = "https://github.com/Madhur-Prakash/logifyx-Py/issues"
 
 [project.scripts]
-logify = "logify.cli:main"
+logifyx = "logifyx.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["logify*"]
+include = ["logifyx*"]
 exclude = ["tests*", "logs*", "examples*"]
 
 
@@ -109,7 +108,7 @@ markers = [
 # Coverage
 # ---------------------------
 [tool.coverage.run]
-source = ["logify"]
+source = ["logifyx"]
 branch = true
 
 [tool.coverage.report]

@@ -8,7 +8,7 @@ Features:
 - Auto-retry with circuit breaker pattern
 
 Usage:
-    log = Logify(
+    log = Logifyx(
         name="myapp",
         kafka_servers="localhost:9092",
         kafka_topic="logs",
@@ -34,7 +34,7 @@ from typing import Optional, Dict, Any
 LOG_SCHEMA_V1 = {
     "type": "record",
     "name": "LogRecord",
-    "namespace": "com.logify.logs",
+    "namespace": "com.logifyx.logs",
     "doc": "Log record schema v1",
     "fields": [
         {"name": "level", "type": "string", "doc": "Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"},

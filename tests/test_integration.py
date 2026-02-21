@@ -1,5 +1,5 @@
 """
-Integration tests for Logify - end-to-end scenarios.
+Integration tests for Logifyx - end-to-end scenarios.
 """
 
 import logging
@@ -12,7 +12,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from logify import Logify, ContextLoggerAdapter, get_logify_logger, setup_logify
+from logifyx import Logifyx, ContextLoggerAdapter, get_logify_logger, setup_logify
 
 
 class TestEndToEndLogging:
@@ -21,7 +21,7 @@ class TestEndToEndLogging:
     def test_full_logging_workflow(self, temp_log_dir):
         """Test a complete logging workflow."""
         # Create logger
-        log = Logify(
+        log = Logifyx(
             name="integration_test",
             mode="dev",
             log_dir=temp_log_dir,
@@ -63,7 +63,7 @@ class TestEndToEndLogging:
         
     def test_context_injection_workflow(self, temp_log_dir):
         """Test context injection with adapter."""
-        log = Logify(
+        log = Logifyx(
             name="context_integration",
             mode="dev",
             log_dir=temp_log_dir,
@@ -97,7 +97,7 @@ class TestEndToEndLogging:
         
     def test_global_registration_workflow(self, temp_log_dir):
         """Test global registration workflow."""
-        # Setup Logify globally
+        # Setup Logifyx globally
         setup_logify()
         
         # Get multiple loggers
@@ -119,9 +119,9 @@ class TestEndToEndLogging:
         auth_log.info("User authenticated")
         api_log.info("API request processed")
         
-        # Verify both are Logify instances
-        assert isinstance(auth_log, Logify)
-        assert isinstance(api_log, Logify)
+        # Verify both are Logifyx instances
+        assert isinstance(auth_log, Logifyx)
+        assert isinstance(api_log, Logifyx)
         
         # Verify logs written
         for handler in auth_log.handlers:
@@ -135,7 +135,7 @@ class TestEndToEndLogging:
     def test_preset_modes_real_output(self, temp_log_dir):
         """Test preset modes with real output."""
         # Dev mode
-        dev_log = Logify(
+        dev_log = Logifyx(
             name="dev_test",
             mode="dev",
             log_dir=temp_log_dir,
@@ -146,7 +146,7 @@ class TestEndToEndLogging:
         dev_log.info("Info in dev mode")
         
         # Simple mode
-        simple_log = Logify(
+        simple_log = Logifyx(
             name="simple_test",
             mode="simple",
             log_dir=temp_log_dir,
@@ -168,7 +168,7 @@ class TestEndToEndLogging:
         
     def test_reload_functionality(self, temp_log_dir):
         """Test reload clears and rebuilds handlers."""
-        log = Logify(
+        log = Logifyx(
             name="reload_test",
             mode="dev",
             log_dir=temp_log_dir,
@@ -203,7 +203,7 @@ class TestErrorScenarios:
     def test_invalid_mode_ignored(self, temp_log_dir):
         """Test that invalid mode is ignored gracefully."""
         # Should not raise exception
-        log = Logify(
+        log = Logifyx(
             name="invalid_mode_test",
             mode="nonexistent_mode",
             log_dir=temp_log_dir,
@@ -215,7 +215,7 @@ class TestErrorScenarios:
         
     def test_exception_logging(self, temp_log_dir):
         """Test logging exceptions."""
-        log = Logify(
+        log = Logifyx(
             name="exception_test",
             mode="dev",
             log_dir=temp_log_dir,
@@ -243,14 +243,14 @@ class TestConcurrentLogging:
 
     def test_multiple_loggers_same_file(self, temp_log_dir):
         """Test multiple loggers writing to same file."""
-        log1 = Logify(
+        log1 = Logifyx(
             name="concurrent1",
             mode="dev",
             log_dir=temp_log_dir,
             file="concurrent.log"
         )
         
-        log2 = Logify(
+        log2 = Logifyx(
             name="concurrent2",
             mode="dev",
             log_dir=temp_log_dir,

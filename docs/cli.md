@@ -1,33 +1,33 @@
 # 🔧 CLI Reference
 
-Logify includes a command-line interface for inspecting and debugging your logging configuration.
+Logifyx includes a command-line interface for inspecting and debugging your logging configuration.
 
 ---
 
 ## Installation
 
-The CLI is automatically available after installing Logify:
+The CLI is automatically available after installing Logifyx:
 
 ```bash
-pip install logify
+pip install logifyx
 ```
 
 ---
 
 ## Commands
 
-### `logify --config`
+### `logifyx --config`
 
-Display the resolved Logify configuration from all sources.
+Display the resolved Logifyx configuration from all sources.
 
 ```bash
-logify --config
+logifyx --config
 ```
 
 **Output:**
 
 ```
-📦 Logify Configuration (logify.yaml: found):
+📦 Logifyx Configuration (logifyx.yaml: found):
 
 {
     "level": "DEBUG",
@@ -49,29 +49,29 @@ logify --config
 
 **What it shows:**
 - All resolved configuration values
-- Whether `logify.yaml` was found
+- Whether `logifyx.yaml` was found
 - Merged values from env, yaml, and defaults
 
 ---
 
-### `logify --help`
+### `logifyx --help`
 
 Display help information.
 
 ```bash
-logify --help
+logifyx --help
 ```
 
 **Output:**
 
 ```
-usage: logify [-h] [--config]
+usage: logifyx [-h] [--config]
 
-Logify CLI Tool
+Logifyx CLI Tool
 
 options:
   -h, --help  show this help message and exit
-  --config    Show resolved Logify configuration (from logify.yaml + env)
+  --config    Show resolved Logifyx configuration (from logifyx.yaml + env)
 ```
 
 ---
@@ -81,12 +81,12 @@ options:
 The `--config` command shows the fully resolved configuration, merging:
 
 1. **Environment variables** (highest priority)
-2. **logify.yaml** (if present)
+2. **logifyx.yaml** (if present)
 3. **Default values** (lowest priority)
 
 ### Example: Debugging Configuration
 
-**logify.yaml:**
+**logifyx.yaml:**
 ```yaml
 LOG_LEVEL: DEBUG
 LOG_FILE: app.log
@@ -100,9 +100,9 @@ LOG_LEVEL=WARNING
 
 **CLI output:**
 ```bash
-$ logify --config
+$ logifyx --config
 
-📦 Logify Configuration (logify.yaml: found):
+📦 Logifyx Configuration (logifyx.yaml: found):
 
 {
     "level": "WARNING",    # From .env (overrides yaml)
@@ -123,15 +123,15 @@ $ logify --config
 export LOG_LEVEL=INFO
 export LOG_KAFKA_SERVERS=kafka.prod:9092
 
-logify --config
+logifyx --config
 # Verify all settings are correct
 ```
 
 ### 2. Debug Missing Configuration
 
 ```bash
-logify --config
-# Check if logify.yaml was found
+logifyx --config
+# Check if logifyx.yaml was found
 # Verify expected values are set
 ```
 
@@ -139,7 +139,7 @@ logify --config
 
 ```bash
 # In your deployment script
-logify --config | grep "kafka_servers"
+logifyx --config | grep "kafka_servers"
 # Ensure Kafka is configured for production
 ```
 
@@ -147,21 +147,21 @@ logify --config | grep "kafka_servers"
 
 ## Configuration File Detection
 
-The CLI looks for `logify.yaml` in the current working directory:
+The CLI looks for `logifyx.yaml` in the current working directory:
 
 ```bash
-# Shows "logify.yaml: found"
-$ cd /path/to/project  # Contains logify.yaml
-$ logify --config
+# Shows "logifyx.yaml: found"
+$ cd /path/to/project  # Contains logifyx.yaml
+$ logifyx --config
 
-📦 Logify Configuration (logify.yaml: found):
+📦 Logifyx Configuration (logifyx.yaml: found):
 ...
 
-# Shows "logify.yaml: not found"
-$ cd /tmp  # No logify.yaml
-$ logify --config
+# Shows "logifyx.yaml: not found"
+$ cd /tmp  # No logifyx.yaml
+$ logifyx --config
 
-📦 Logify Configuration (logify.yaml: not found):
+📦 Logifyx Configuration (logifyx.yaml: not found):
 ...
 ```
 
@@ -196,17 +196,17 @@ All configuration can be set via environment variables:
 
 ```bash
 # See just Kafka settings
-logify --config | grep kafka
+logifyx --config | grep kafka
 
 # See just file settings  
-logify --config | grep -E "file|dir"
+logifyx --config | grep -E "file|dir"
 ```
 
 ### Export for Comparison
 
 ```bash
 # Save config to file
-logify --config > config-snapshot.json
+logifyx --config > config-snapshot.json
 
 # Compare environments
 diff config-dev.json config-prod.json

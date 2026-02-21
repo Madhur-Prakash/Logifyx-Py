@@ -1,5 +1,5 @@
 """
-Tests for the core Logify class functionality.
+Tests for the core Logifyx class functionality.
 """
 
 import logging
@@ -13,8 +13,8 @@ from unittest.mock import patch, MagicMock
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from logify import Logify, ContextLoggerAdapter, get_logify_logger, setup_logify
-from logify.core import _sentinel, _stop_queue_listener
+from logifyx import Logifyx, ContextLoggerAdapter, get_logify_logger, setup_logify
+from logifyx.core import _sentinel, _stop_queue_listener
 
 
 @pytest.fixture(autouse=True)
@@ -41,11 +41,11 @@ def temp_log_dir():
 
 
 class TestLogifyDirectInstantiation:
-    """Tests for direct Logify instantiation."""
+    """Tests for direct Logifyx instantiation."""
 
     def test_basic_instantiation(self, temp_log_dir):
-        """Test basic Logify instantiation with minimal config."""
-        log = Logify(
+        """Test basic Logifyx instantiation with minimal config."""
+        log = Logifyx(
             name="test_basic",
             mode="dev",
             log_dir=temp_log_dir,
@@ -56,8 +56,8 @@ class TestLogifyDirectInstantiation:
         assert len(log.handlers) > 0
         
     def test_instantiation_with_all_params(self, temp_log_dir):
-        """Test Logify instantiation with all parameters."""
-        log = Logify(
+        """Test Logifyx instantiation with all parameters."""
+        log = Logifyx(
             name="test_full",
             mode="prod",
             json_mode=False,
@@ -75,7 +75,7 @@ class TestLogifyDirectInstantiation:
         
     def test_handlers_prevent_reconfiguration(self, temp_log_dir):
         """Test that existing handlers prevent reconfiguration."""
-        log1 = Logify(
+        log1 = Logifyx(
             name="test_singleton",
             mode="dev",
             log_dir=temp_log_dir,
@@ -85,7 +85,7 @@ class TestLogifyDirectInstantiation:
         handler_count = len(log1.handlers)
         
         # Create another instance with same name
-        log2 = Logify(
+        log2 = Logifyx(
             name="test_singleton",
             mode="prod",  # Different mode
             log_dir=temp_log_dir,
@@ -97,7 +97,7 @@ class TestLogifyDirectInstantiation:
         
     def test_logging_methods_work(self, temp_log_dir):
         """Test that all logging methods work."""
-        log = Logify(
+        log = Logifyx(
             name="test_methods",
             mode="dev",
             log_dir=temp_log_dir,
@@ -117,7 +117,7 @@ class TestLogifyPresets:
 
     def test_dev_mode(self, temp_log_dir):
         """Test dev mode preset."""
-        log = Logify(
+        log = Logifyx(
             name="test_dev",
             mode="dev",
             log_dir=temp_log_dir,
@@ -130,7 +130,7 @@ class TestLogifyPresets:
         
     def test_prod_mode(self, temp_log_dir):
         """Test prod mode preset."""
-        log = Logify(
+        log = Logifyx(
             name="test_prod",
             mode="prod",
             log_dir=temp_log_dir,
@@ -143,7 +143,7 @@ class TestLogifyPresets:
         
     def test_simple_mode(self, temp_log_dir):
         """Test simple mode preset."""
-        log = Logify(
+        log = Logifyx(
             name="test_simple",
             mode="simple",
             log_dir=temp_log_dir,
@@ -160,7 +160,7 @@ class TestLogifyReload:
 
     def test_reload_clears_handlers(self, temp_log_dir):
         """Test that reload clears existing handlers."""
-        log = Logify(
+        log = Logifyx(
             name="test_reload",
             mode="dev",
             log_dir=temp_log_dir,
@@ -188,7 +188,7 @@ class TestSentinelPattern:
     def test_no_params_means_no_configure(self):
         """Test that no params means configure() is not called."""
         # Just name doesn't trigger configure
-        log = Logify(name="test_no_config")
+        log = Logifyx(name="test_no_config")
         
         # Should not have config attribute if not configured
         # Actually it might not have handlers
@@ -201,7 +201,7 @@ class TestFileLogging:
     def test_log_file_created(self, temp_log_dir):
         """Test that log file is created."""
         log_file = "created.log"
-        log = Logify(
+        log = Logifyx(
             name="test_file_create",
             mode="dev",
             log_dir=temp_log_dir,
@@ -217,7 +217,7 @@ class TestFileLogging:
     def test_log_content_written(self, temp_log_dir):
         """Test that log content is written to file."""
         log_file = "content.log"
-        log = Logify(
+        log = Logifyx(
             name="test_content",
             mode="dev",
             log_dir=temp_log_dir,
@@ -243,7 +243,7 @@ class TestConflictResolution:
 
     def test_json_mode_disabled_when_color_enabled(self, temp_log_dir):
         """Test that json_mode is disabled when color is enabled."""
-        log = Logify(
+        log = Logifyx(
             name="test_conflict",
             json_mode=True,
             color=True,

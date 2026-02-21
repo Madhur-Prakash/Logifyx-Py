@@ -8,7 +8,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from logify.config import load_config
+from logifyx.config import load_config
 
 
 @pytest.fixture(autouse=True)

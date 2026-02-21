@@ -1034,7 +1034,7 @@ wheels = [
 ]
 
 [[package]]
-name = "logify"
+name = "logifyx"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [

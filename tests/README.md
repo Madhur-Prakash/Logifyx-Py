@@ -1,6 +1,6 @@
-# Logify Test Suite
+# Logifyx Test Suite
 
-This directory contains comprehensive tests for the Logify logging library.
+This directory contains comprehensive tests for the Logifyx logging library.
 
 ## Running Tests
 
@@ -9,7 +9,7 @@ This directory contains comprehensive tests for the Logify logging library.
 pytest tests/ -v
 
 # Run with coverage
-pytest tests/ --cov=logify --cov-report=term-missing
+pytest tests/ --cov=logifyx --cov-report=term-missing
 
 # Run specific test file
 pytest tests/test_core.py -v
@@ -21,8 +21,8 @@ pytest tests/test_core.py::TestLogifyPresets -v
 ## Test Files
 
 ### [test_core.py](test_core.py)
-Tests for the main `Logify` class functionality:
-- **TestLogifyDirectInstantiation**: Validates direct `log = Logify(...)` usage without `.get_logger()`
+Tests for the main `Logifyx` class functionality:
+- **TestLogifyDirectInstantiation**: Validates direct `log = Logifyx(...)` usage without `.get_logger()`
 - **TestLogifyPresets**: Tests `dev`, `prod`, and `simple` preset modes
 - **TestLogifyReload**: Tests the `reload()` method for reconfiguring loggers
 - **TestSentinelPattern**: Verifies sentinel pattern correctly detects explicitly provided parameters
