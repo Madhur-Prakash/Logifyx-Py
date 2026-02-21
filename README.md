@@ -272,7 +272,7 @@ $env:LOG_LEVEL = "DEBUG"
 $env:LOG_FILE = "app.log"
 ```
 
-Or use a `.env` file (loaded automatically):
+Or use a `.env` file (loaded automatically via `python-dotenv`):
 
 ```env
 LOG_LEVEL=DEBUG
@@ -281,6 +281,45 @@ LOG_DIR=logs
 LOG_COLOR=True
 LOG_MASK=True
 ```
+
+### Sample `.env` File
+
+Here's a complete `.env` file with all available options:
+
+```env
+# ===========================================
+# Logify Configuration - Sample .env File
+# ===========================================
+
+# ---- Core Settings ----
+LOG_LEVEL=INFO                          # DEBUG, INFO, WARNING, ERROR, CRITICAL
+LOG_MODE=dev                            # dev, prod, simple
+
+# ---- Output Settings ----
+LOG_FILE=app.log                        # Log file name
+LOG_DIR=logs                            # Directory for log files
+LOG_COLOR=True                          # Enable colored console output
+LOG_JSON=False                          # Enable JSON formatted logs
+LOG_MASK=True                           # Mask sensitive data (passwords, tokens, etc.)
+
+# ---- File Rotation ----
+LOG_MAX_BYTES=10000000                  # Max file size before rotation (10MB)
+LOG_BACKUP_COUNT=5                      # Number of backup files to keep
+
+# ---- Remote HTTP Logging ----
+LOG_REMOTE=http://localhost:5000/logs   # HTTP endpoint URL
+LOG_REMOTE_TIMEOUT=5                    # Request timeout in seconds
+LOG_REMOTE_RETRIES=3                    # Max failures before disabling
+LOG_REMOTE_HEADERS={"Content-Type": "application/json", "Authorization": "Bearer your-token"}  # Custom HTTP headers (JSON format)
+
+# ---- Kafka Streaming ----
+LOG_KAFKA_SERVERS=localhost:9092        # Kafka bootstrap servers (comma-separated)
+LOG_KAFKA_TOPIC=app-logs                # Kafka topic name
+LOG_SCHEMA_REGISTRY=http://localhost:8081  # Confluent Schema Registry URL
+LOG_SCHEMA_COMPATIBILITY=BACKWARD       # BACKWARD, FORWARD, FULL, NONE
+```
+
+> **Note:** Add `.env` to your `.gitignore` to avoid committing secrets.
 
 ### 3. YAML Configuration File
 
