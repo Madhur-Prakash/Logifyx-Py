@@ -19,7 +19,7 @@ log = Logifyx(
     file="auth.log",
     log_dir="logs",
     color=True,
-    remote_url="http://localhost:5000/logs",  # Uncomment with running server
+    # remote_url="http://localhost:5000/logs",  # Uncomment with running server
     max_remote_retries=5,
     mask=True
 )

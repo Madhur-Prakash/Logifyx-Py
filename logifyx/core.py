@@ -414,9 +414,12 @@ def get_logify_logger(
             "Call logging.setLoggerClass(Logifyx) at app startup."
         )
     
+    # Filter out sentinel values - keep only explicitly provided params
+    provided = {k: v for k, v in func_params.items() if v is not _sentinel}
+    
     # Configure only if not already configured (no handlers yet)
-    if not logger.handlers and func_params:
-        logger.configure(**func_params)
+    if not logger.handlers and provided:
+        logger.configure(**provided)
     
     return logger
 
