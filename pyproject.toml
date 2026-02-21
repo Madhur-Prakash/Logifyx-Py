@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "logifyx"
 version = "0.0.1"
+description = "A modern, production-ready Python logging framework with zero configuration."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
