@@ -57,10 +57,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Madhur-Prakash/logifyx-Py"
-Documentation = "https://github.com/Madhur-Prakash/logifyx-Py"
-Source = "https://github.com/Madhur-Prakash/logifyx-Py"
-Issues = "https://github.com/Madhur-Prakash/logifyx-Py/issues"
+Homepage = "https://github.com/Madhur-Prakash/Logifyx-Py"
+Documentation = "https://github.com/Madhur-Prakash/Logifyx-Py"
+Source = "https://github.com/Madhur-Prakash/Logifyx-Py"
+Issues = "https://github.com/Madhur-Prakash/Logifyx-Py/issues"
 
 [project.scripts]
 logifyx = "logifyx.cli:main"
