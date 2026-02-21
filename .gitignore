@@ -11,3 +11,4 @@ logify.yaml
 .logify.runtime.json
 # Virtual environments
 .venv
+.pytest_cache
