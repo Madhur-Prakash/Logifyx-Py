@@ -1,5 +1,6 @@
 import os
 import yaml
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -38,6 +39,19 @@ def load_config():
     # remote request settings
     config["remote_timeout"] = int(os.getenv("LOG_REMOTE_TIMEOUT", yaml_config.get("LOG_REMOTE_TIMEOUT", 5)))
     config["max_remote_retries"] = int(os.getenv("LOG_REMOTE_RETRIES", yaml_config.get("LOG_REMOTE_RETRIES", 3)))
-    config["remote_headers"] = yaml_config.get("LOG_REMOTE_HEADERS", {"Content-Type": "application/json"})
-    
+
+    # remote headers
+    env_headers = os.getenv("LOG_REMOTE_HEADERS", None)
+
+    if env_headers:
+        try:
+            config["remote_headers"] = json.loads(env_headers)
+        except json.JSONDecodeError:
+            config["remote_headers"] = {"Content-Type": "application/json"}
+    else:
+        yaml_headers = yaml_config.get("LOG_REMOTE_HEADERS")
+        config["remote_headers"] = (
+            yaml_headers if isinstance(yaml_headers, dict)
+            else {"Content-Type": "application/json"}
+        )
     return config
