@@ -6,10 +6,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "logify"
 version = "0.0.1"
-description = "Modern Python Logging Framework with async remote and Kafka support"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.8"
-license = { text = "MIT" }
 
 authors = [
   { name = "Madhur Prakash", email = "madhurprakash2005@gmail.com" }
@@ -118,4 +118,10 @@ exclude_lines = [
     "def __repr__",
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
+]
+
+[dependency-groups]
+dev = [
+    "build>=1.2.2.post1",
+    "twine>=6.1.0",
 ]
