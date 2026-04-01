@@ -15,35 +15,39 @@ from logifyx import Logifyx, ContextLoggerAdapter, get_logify_logger, setup_logi
 # ========================================
 log = Logifyx(
     name="auth",
-    mode="dev",
+    # mode="dev",
     file="auth.log",
     log_dir="logs",
-    color=True,
+    # color=True,
+    json_mode=True,
     # remote_url="http://localhost:5000/logs",  # Uncomment with running server
     max_remote_retries=5,
     mask=True
 )
 
 log.info("Server started")
-log.warning("password=123456 token=abcd123")  # Masked automatically
-log.warning("password=123456 token=abcd123")  # Masked automatically
+log.critical("password=123456 token=abcd123")  # Masked automatically
+log.critical("password=123456 token=abcd123")  # Masked automatically
 log.info("Server started")
 log.warning("password=123456 token=abcd123")  # Masked automatically
 log.error("Login failed")
 
+def loef():
+    log.error("An error occurred in loef()")
 
 # ========================================
 # Option 2: Global Registration (Recommended for large apps)
 # ========================================
 setup_logify()  # Call once at app startup
+loef()  # Still works with direct instance
 
 # Now use get_logify_logger anywhere in your app
 api_log = get_logify_logger(
     "api", 
-    mode="dev",
+    # mode="dev",
     file="api.log",
     log_dir="logs",
-    color=True
+    # color=True
 )
 
 api_log.info("API endpoint hit")

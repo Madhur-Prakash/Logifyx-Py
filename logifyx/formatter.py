@@ -2,16 +2,31 @@ import logging
 from pythonjsonlogger import jsonlogger
 import colorlog
 
-
-def get_formatter(json_mode=False, color=False):
-
-    if json_mode:
-        return jsonlogger.JsonFormatter(
-            "%(asctime)s %(name)s %(levelname)s %(levelname)s %(message)s"
+class CompactJsonFormatter(jsonlogger.JsonFormatter):
+    def format(self, record):
+        # Build the exact string you want
+        log_line = (
+            f"{self.formatTime(record, self.datefmt)} - "
+            f"{record.name} - "
+            f"{record.levelname} - "
+            f"{record.getMessage()} - "
+            f"{record.pathname} - "
+            f"{record.filename} - "
+            f"{record.lineno} - "
+            f"{record.funcName}"
         )
 
-    fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(pathname)s - %(filename)s - %(lineno)d"
+        # Return as JSON
+        return (log_line)
+
+def get_formatter(json_mode=False, color=False):
     datefmt = "%Y-%m-%d %H:%M:%S"
+    fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(pathname)s - %(filename)s - %(lineno)d - %(funcName)s"
+
+    if json_mode:
+        formatter = CompactJsonFormatter()
+        formatter.datefmt = datefmt
+        return formatter
 
     if color:
         return colorlog.ColoredFormatter(
