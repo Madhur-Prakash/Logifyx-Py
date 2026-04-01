@@ -5,6 +5,14 @@ All notable changes to Logifyx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - v1.0.1
+
+### Documentation
+
+- Updated README examples for clearer quick-start usage
+- Refined CLI documentation with improved command descriptions
+- Improved configuration docs with clearer option explanations
+
 ## [1.0.0] - 2026-02-22
 
 ### Added
@@ -46,4 +54,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Configuration guide
   - Kafka streaming guide
 
+  [Unreleased]: https://github.com/madhur-banger/logifyx-py/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/madhur-banger/logifyx-py/releases/tag/v1.0.0
