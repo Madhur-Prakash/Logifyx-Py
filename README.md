@@ -2,14 +2,19 @@
 
 # Logifyx
 
+[![PyPI version](https://img.shields.io/pypi/v/logifyx.svg?logo=pypi&label=logifyx%20on%20PyPI)](https://pypi.org/project/logifyx/)
+
 ![Python](https://img.shields.io/badge/Python-3.8+-blue?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Kafka](https://img.shields.io/badge/Kafka-Streaming-orange?logo=apache-kafka)
 ![Avro](https://img.shields.io/badge/Avro-Schema-red)
 
+
 **A modern, production-ready Python logging framework with zero configuration.**
 
-[Quick Start](#-quick-start) • [Features](#-features) • [Configuration](#%EF%B8%8F-configuration) • [Handlers](#-handlers) • [Kafka Streaming](#-kafka-streaming) • [CLI](#-cli-tool) • [API Reference](#-api-reference)
+[View on PyPI](https://pypi.org/project/logifyx/)
+
+[Quick Start](#quick-start) • [Features](#features) • [Configuration](#configuration) • [Handlers](#handlers) • [Kafka Streaming](#kafka-streaming) • [CLI](#cli-tool) • [API Reference](#api-reference)
 
 </div>
 
@@ -17,25 +22,25 @@
 
 ## Table of Contents
 
-- [Features](#-features)
-- [Installation](#-installation)
-- [Quick Start](#-quick-start)
-- [Preset Modes](#-preset-modes)
-- [Configuration](#%EF%B8%8F-configuration)
-- [Handlers](#-handlers)
-  - [Console Handler](#console-handler)
-  - [File Handler](#file-handler)
-  - [Remote HTTP Handler](#remote-http-handler)
-  - [Kafka Handler](#kafka-handler)
-- [Sensitive Data Masking](#-sensitive-data-masking)
-- [Context Injection](#-context-injection)
-- [Kafka Streaming](#-kafka-streaming)
-- [CLI Tool](#-cli-tool)
-- [API Reference](#-api-reference)
-- [Examples](#-examples)
-- [Project Structure](#-project-structure)
-- [Contributing](#-contributing)
-- [License](#-license)
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Preset Modes](#preset-modes)
+- [Configuration](#configuration)
+- [Handlers](#handlers)
+    - [Console Handler](#console-handler)
+    - [File Handler](#file-handler)
+    - [Remote HTTP Handler](#remote-http-handler)
+    - [Kafka Handler](#kafka-handler)
+- [Sensitive Data Masking](#sensitive-data-masking)
+- [Context Injection](#context-injection)
+- [Kafka Streaming](#kafka-streaming)
+- [CLI Tool](#cli-tool)
+- [API Reference](#api-reference)
+- [Examples](#examples)
+- [Project Structure](#project-structure)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
@@ -638,28 +643,21 @@ version: '3.8'
 
 services:
   kafka:
-    image: confluentinc/cp-kafka:7.5.0
-    container_name: kafka
+    image: obsidiandynamics/kafka
+    restart: "no"
     ports:
+      - "2181:2181"
       - "9092:9092"
       - "29092:29092"
     environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
-    healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
-      interval: 10s
-      timeout: 10s
-      retries: 5
+      KAFKA_LISTENERS: "INTERNAL://:29092,EXTERNAL://:9092"
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka:29092,EXTERNAL://localhost:9092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+      KAFKA_ZOOKEEPER_SESSION_TIMEOUT: "6000"
+      KAFKA_RESTART_ATTEMPTS: "10"
+      KAFKA_RESTART_DELAY: "5"
+      ZOOKEEPER_AUTOPURGE_PURGE_INTERVAL: "0"
 
   schema-registry:
     image: confluentinc/cp-schema-registry:7.5.0
@@ -1073,8 +1071,8 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 <div align="center">
 
-**Made with ❤️ by [Madhur Prakash](https://github.com/madhurprakash)**
+**Made with ❤️ by [Madhur Prakash](https://github.com/Madhur-Prakash)**
 
-[Report Bug](https://github.com/Madhur-Prakash/Logifyx-Py/issues) • [Request Feature](https://github.com/Madhur-Prakash/Logifyx-Py/issues)
+[Report Bug](https://github.com/Madhur-Prakash/Logifyx-Py/issues) • [Request Feature](https://github.com/Madhur-Prakash/Logifyx-Py/discussions)
 
 </div>
