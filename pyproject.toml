@@ -56,7 +56,7 @@ dev = [
   "pytest",
   "flask",
 ]
-
+ 
 [project.urls]
 Homepage = "https://github.com/Madhur-Prakash/Logifyx-Py"
 Documentation = "https://github.com/Madhur-Prakash/Logifyx-Py"
