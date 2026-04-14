@@ -5,6 +5,17 @@ All notable changes to Logifyx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.0.4...v1.0.5) - 2026-04-14
+
+### Fixed
+
+- Default log file naming now follows the logger name when `file` is not set explicitly.
+- This keeps `Logifyx(name="billing-service")` writing to `billing-service.log` instead of always falling back to `app.log`.
+
+### Verification
+
+- Confirmed the filename is derived from the logger name only when `LOG_FILE` or `file=` is not provided.
+
 ## [1.0.4](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.0.3...v1.0.4) - 2026-04-14
 
 ### Fixed
