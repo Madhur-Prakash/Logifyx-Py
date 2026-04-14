@@ -13,17 +13,7 @@ from logifyx import Logifyx, ContextLoggerAdapter, get_logify_logger, setup_logi
 # ========================================
 # Option 1: Direct Instantiation (Simple)
 # ========================================
-log = Logifyx(
-    name="auth",
-    # mode="dev",
-    file="auth.log",
-    log_dir="logs",
-    # color=True,
-    json_mode=True,
-    # remote_url="http://localhost:5000/logs",  # Uncomment with running server
-    max_remote_retries=5,
-    mask=True
-)
+log = Logifyx(name="myapp")
 
 log.info("Server started")
 log.critical("password=123456 token=abcd123")  # Masked automatically

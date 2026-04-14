@@ -174,10 +174,13 @@ class Logifyx(logging.Logger):
         
         # Filter out sentinel values - keep only explicitly provided params
         provided = {k: v for k, v in self._init_params.items() if v is not _sentinel}
-        
-        # Auto-configure if any params provided (direct instantiation)
+
+        # Configure even when no explicit kwargs were passed so zero-config
+        # usage still creates handlers and emits INFO-level messages.
         if provided:
             self.configure(**provided)
+        else:
+            self.configure() # configure with defaults from config file or presets
 
     def configure(
         self,
@@ -420,6 +423,8 @@ def get_logify_logger(
     # Configure only if not already configured (no handlers yet)
     if not logger.handlers and provided:
         logger.configure(**provided)
+    elif not logger.handlers:
+        logger.configure()
     
     return logger
 

@@ -20,6 +20,14 @@ from logifyx.core import _sentinel, _stop_queue_listener
 @pytest.fixture(autouse=True)
 def reset_logging():
     """Reset logging state before each test."""
+    for logger in list(logging.Logger.manager.loggerDict.values()):
+        if isinstance(logger, logging.Logger):
+            for handler in logger.handlers[:]:
+                logger.removeHandler(handler)
+                handler.close()
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+        handler.close()
     # Clear all loggers
     logging.Logger.manager.loggerDict.clear()
     # Reset logger class to default
@@ -186,13 +194,30 @@ class TestSentinelPattern:
         assert _sentinel is not False
         
     def test_no_params_means_no_configure(self):
-        """Test that no params means configure() is not called."""
-        # Just name doesn't trigger configure
+        """Test that zero-config instantiation still configures the logger."""
         log = Logifyx(name="test_no_config")
         
-        # Should not have config attribute if not configured
-        # Actually it might not have handlers
-        assert not hasattr(log, 'config') or not log.handlers
+        assert hasattr(log, "config")
+        assert log.handlers
+
+    def test_zero_config_logs_info(self, temp_log_dir):
+        """Test that INFO logs are emitted without passing color or other kwargs."""
+        log = Logifyx(name="test_zero_config", log_dir=temp_log_dir, file="zero.log")
+
+        log.info("Zero-config info message")
+
+        for handler in log.handlers:
+            handler.flush()
+
+        full_path = os.path.join(temp_log_dir, "zero.log")
+        with open(full_path, "r") as f:
+            content = f.read()
+
+        assert "Zero-config info message" in content
+
+        for handler in log.handlers[:]:
+            log.removeHandler(handler)
+            handler.close()
 
 
 class TestFileLogging:
