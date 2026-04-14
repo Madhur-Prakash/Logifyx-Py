@@ -64,9 +64,31 @@ LOG_COLOR=True
 LOG_MASK=True
 ```
 
+For the CLI snapshot command, Logifyx reads `.env` and `logifyx.yaml` from the current working directory by default. You can override that with `--config-dir`, `--env-file`, or `--yaml-file`.
+
+The same explicit path options are also available in code usage via `Logifyx(...)` and `get_logify_logger(...)`:
+
+```python
+from logifyx import Logifyx, get_logify_logger
+
+log = Logifyx(
+    name="app",
+    config_dir="./config",
+    env_file="./config/.env",
+    yaml_file="./config/logifyx.yaml",
+)
+
+api_log = get_logify_logger(
+    "api",
+    config_dir="./config",
+    env_file="./config/.env",
+    yaml_file="./config/logifyx.yaml",
+)
+```
+
 ### 3. YAML Configuration File
 
-Create a `logifyx.yaml` file in your project root:
+Create a `logifyx.yaml` file in your current working directory, or in the directory you pass to the CLI:
 
 ```yaml
 # Logging Settings
@@ -241,6 +263,13 @@ Use the CLI to inspect resolved configuration:
 
 ```bash
 logifyx --config
+```
+
+Examples:
+
+```bash
+logifyx --config --config-dir ./examples
+logifyx --config --env-file ./examples/.env --yaml-file ./examples/logifyx.yaml
 ```
 
 Output:

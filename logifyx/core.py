@@ -125,6 +125,9 @@ class Logifyx(logging.Logger):
         self,
         name: str = "app",
         level: int = logging.NOTSET,  # Required by Logger base class
+        config_dir = _sentinel,
+        env_file = _sentinel,
+        yaml_file = _sentinel,
         mode = _sentinel,
         json_mode = _sentinel,
         remote_url = _sentinel,
@@ -154,6 +157,9 @@ class Logifyx(logging.Logger):
         
         # Store init params (only those explicitly provided)
         self._init_params = {
+            "config_dir": config_dir,
+            "env_file": env_file,
+            "yaml_file": yaml_file,
             "mode": mode,
             "json_mode": json_mode,
             "remote_url": remote_url,
@@ -184,6 +190,9 @@ class Logifyx(logging.Logger):
 
     def configure(
         self,
+        config_dir: Optional[str] = None,
+        env_file: Optional[str] = None,
+        yaml_file: Optional[str] = None,
         mode: Optional[str] = None,
         json_mode: Optional[bool] = None,
         remote_url: Optional[str] = None,
@@ -211,7 +220,7 @@ class Logifyx(logging.Logger):
             return self
             
         # Load base config
-        self.config = load_config()
+        self.config = load_config(config_dir=config_dir, env_file=env_file, yaml_file=yaml_file)
 
         # Apply preset
         if mode and mode in MODES:
@@ -354,6 +363,9 @@ class ContextLoggerAdapter(logging.LoggerAdapter):
 
 def get_logify_logger(
         name: str,
+    config_dir = _sentinel,
+    env_file = _sentinel,
+    yaml_file = _sentinel,
         mode = _sentinel,
         json_mode = _sentinel,
         remote_url = _sentinel,
@@ -391,6 +403,9 @@ def get_logify_logger(
         Configured Logifyx instance
     """
     func_params = {
+        "config_dir": config_dir,
+        "env_file": env_file,
+        "yaml_file": yaml_file,
         "mode": mode,
         "json_mode": json_mode,
         "remote_url": remote_url,

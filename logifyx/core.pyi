@@ -8,6 +8,9 @@ class Logifyx(logging.Logger):
         self,
         name: str = "app",
         level: int = ...,
+        config_dir: Optional[str] = None,
+        env_file: Optional[str] = None,
+        yaml_file: Optional[str] = None,
         mode: Optional[str] = None,
         json_mode: Optional[bool] = None,
         remote_url: Optional[str] = None,
@@ -28,6 +31,9 @@ class Logifyx(logging.Logger):
 
     def configure(
         self,
+        config_dir: Optional[str] = None,
+        env_file: Optional[str] = None,
+        yaml_file: Optional[str] = None,
         mode: Optional[str] = None,
         json_mode: Optional[bool] = None,
         remote_url: Optional[str] = None,
@@ -57,7 +63,10 @@ class ContextLoggerAdapter(logging.LoggerAdapter):
 
 
 def get_logify_logger(
-        name: str, 
+    name: str,
+    config_dir: Optional[str] = None,
+    env_file: Optional[str] = None,
+    yaml_file: Optional[str] = None,
         mode: Optional[str] = None,
         json_mode: Optional[bool] = None,
         remote_url: Optional[str] = None,

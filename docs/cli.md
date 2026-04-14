@@ -24,10 +24,12 @@ Display the resolved Logifyx configuration from all sources.
 logifyx --config
 ```
 
+By default, the CLI reads `.env` and `logifyx.yaml` from the current working directory. You can override that with `--config-dir`, `--env-file`, and `--yaml-file`.
+
 **Output:**
 
 ```
-📦 Logifyx Configuration (logifyx.yaml: found):
+📦 Logifyx Configuration (config dir: /path/to/project):
 
 {
     "level": "DEBUG",
@@ -52,6 +54,13 @@ logifyx --config
 - Whether `logifyx.yaml` was found
 - Merged values from env, yaml, and defaults
 
+**Overrides:**
+
+```bash
+logifyx --config --config-dir ./project
+logifyx --config --env-file ./project/.env --yaml-file ./project/logifyx.yaml
+```
+
 ---
 
 ### `logifyx --help`
@@ -65,13 +74,19 @@ logifyx --help
 **Output:**
 
 ```
-usage: logifyx [-h] [--config]
+usage: logifyx [-h] [--config] [--config-dir CONFIG_DIR] [--env-file ENV_FILE] [--yaml-file YAML_FILE]
 
 Logifyx CLI Tool
 
 options:
   -h, --help  show this help message and exit
   --config    Show resolved Logifyx configuration (from logifyx.yaml + env)
+  --config-dir CONFIG_DIR
+              Load .env and logifyx.yaml from a specific directory
+  --env-file ENV_FILE
+              Load environment variables from a specific .env file
+  --yaml-file YAML_FILE
+              Load Logifyx YAML configuration from a specific file
 ```
 
 ---
@@ -145,24 +160,27 @@ logifyx --config | grep "kafka_servers"
 
 ---
 
-## Configuration File Detection
+### Configuration File Detection
 
-The CLI looks for `logifyx.yaml` in the current working directory:
+The CLI looks for `.env` and `logifyx.yaml` in the current working directory unless you pass explicit paths:
 
 ```bash
 # Shows "logifyx.yaml: found"
-$ cd /path/to/project  # Contains logifyx.yaml
+$ cd /path/to/project
 $ logifyx --config
 
-📦 Logifyx Configuration (logifyx.yaml: found):
+📦 Logifyx Configuration (config dir: /path/to/project):
 ...
 
 # Shows "logifyx.yaml: not found"
-$ cd /tmp  # No logifyx.yaml
+$ cd /tmp
 $ logifyx --config
 
-📦 Logifyx Configuration (logifyx.yaml: not found):
+📦 Logifyx Configuration (config dir: /path/to/project):
 ...
+
+If `.env` and `logifyx.yaml` exist in the current working directory, the command shows the resolved configuration from those files. If they do not exist, the CLI falls back to defaults.
+```
 ```
 
 ---

@@ -108,6 +108,64 @@ class TestLoadConfigDefaults:
         assert config["max_remote_retries"] == 3
 
 
+class TestLoadConfigPaths:
+    """Tests for explicit config file path loading."""
+
+    def test_load_config_uses_current_working_directory_by_default(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+
+        (tmp_path / ".env").write_text(
+            "LOG_LEVEL=WARNING\nLOG_FILE=cwd-env.log\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "logifyx.yaml").write_text(
+            "LOG_LEVEL: DEBUG\nLOG_DIR: cwd-logs\n",
+            encoding="utf-8",
+        )
+
+        config = load_config()
+
+        assert config["level"] == "WARNING"
+        assert config["file"] == "cwd-env.log"
+        assert config["log_dir"] == "cwd-logs"
+
+    def test_load_config_uses_explicit_config_dir(self, tmp_path, monkeypatch):
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        (config_dir / ".env").write_text(
+            "LOG_LEVEL=WARNING\nLOG_FILE=from-config-dir.log\n",
+            encoding="utf-8",
+        )
+        (config_dir / "logifyx.yaml").write_text(
+            "LOG_LEVEL: DEBUG\nLOG_DIR: config-logs\n",
+            encoding="utf-8",
+        )
+
+        monkeypatch.chdir(tmp_path)
+
+        config = load_config(config_dir=str(config_dir))
+
+        assert config["level"] == "WARNING"
+        assert config["file"] == "from-config-dir.log"
+        assert config["log_dir"] == "config-logs"
+
+    def test_load_config_uses_explicit_files(self, tmp_path, monkeypatch):
+        config_dir = tmp_path / "base"
+        config_dir.mkdir()
+        env_file = tmp_path / "custom.env"
+        yaml_file = tmp_path / "custom.yaml"
+        env_file.write_text("LOG_LEVEL=ERROR\nLOG_FILE=from-env.log\n", encoding="utf-8")
+        yaml_file.write_text("LOG_LEVEL: INFO\nLOG_DIR: yaml-logs\n", encoding="utf-8")
+
+        monkeypatch.chdir(config_dir)
+
+        config = load_config(env_file=str(env_file), yaml_file=str(yaml_file))
+
+        assert config["level"] == "ERROR"
+        assert config["file"] == "from-env.log"
+        assert config["log_dir"] == "yaml-logs"
+
+
 class TestLoadConfigEnvOverride:
     """Tests for environment variable overrides."""
 

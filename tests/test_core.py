@@ -119,6 +119,28 @@ class TestLogifyDirectInstantiation:
         log.error("Error message")
         log.critical("Critical message")
 
+    def test_explicit_config_paths_are_used(self, temp_log_dir):
+        """Test that explicit config paths are honored in direct code usage."""
+        env_path = os.path.join(temp_log_dir, ".env")
+        yaml_path = os.path.join(temp_log_dir, "logifyx.yaml")
+
+        with open(env_path, "w") as f:
+            f.write("LOG_LEVEL=WARNING\nLOG_FILE=from-env.log\n")
+
+        with open(yaml_path, "w") as f:
+            f.write("LOG_LEVEL: INFO\nLOG_DIR: from-yaml-dir\n")
+
+        log = Logifyx(
+            name="test_explicit_paths",
+            config_dir=temp_log_dir,
+            env_file=env_path,
+            yaml_file=yaml_path,
+        )
+
+        assert log.config["level"] == "WARNING"
+        assert log.config["file"] == "from-env.log"
+        assert log.config["log_dir"] == "from-yaml-dir"
+
 
 class TestLogifyPresets:
     """Tests for preset modes (dev, prod, simple)."""
