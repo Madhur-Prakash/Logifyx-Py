@@ -104,6 +104,8 @@ log.warning("This is a warning")
 log.error("Something went wrong")
 ```
 
+If you do not pass `file=...`, Logifyx writes to `<name>.log` by default, so the example above creates `myapp.log`.
+
 ### With Presets
 
 ```python

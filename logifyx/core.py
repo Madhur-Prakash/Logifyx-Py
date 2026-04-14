@@ -22,6 +22,11 @@ _listener_lock = threading.Lock()
 _atexit_registered = False
 
 
+def _default_log_file(name: str) -> str:
+    base_name = (name or "app").strip() or "app"
+    return base_name if base_name.lower().endswith(".log") else f"{base_name}.log"
+
+
 def _start_queue_listener(handlers: list) -> None:
     """Start background listener for async handlers (remote, kafka)."""
     global _queue_listener, _atexit_registered
@@ -250,6 +255,9 @@ class Logifyx(logging.Logger):
         for key, value in overrides.items():
             if value is not None:
                 self.config[key] = value
+
+        if file is None and self.config.get("_file_is_default", False):
+            self.config["file"] = _default_log_file(self.name)
 
         # Conflict resolution
         if self.config.get("json_mode") and self.config.get("color"):

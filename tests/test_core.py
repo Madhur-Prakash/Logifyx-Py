@@ -241,6 +241,23 @@ class TestSentinelPattern:
             log.removeHandler(handler)
             handler.close()
 
+    def test_default_file_uses_logger_name(self, temp_log_dir):
+        """Test that the default log file follows the logger name when not set explicitly."""
+        log = Logifyx(name="billing-service", log_dir=temp_log_dir)
+
+        log.info("Name-based log file test")
+
+        for handler in log.handlers:
+            handler.flush()
+
+        expected_file = os.path.join(temp_log_dir, "billing-service.log")
+        assert log.config["file"] == "billing-service.log"
+        assert os.path.exists(expected_file)
+
+        for handler in log.handlers[:]:
+            log.removeHandler(handler)
+            handler.close()
+
 
 class TestFileLogging:
     """Tests for file logging functionality."""

@@ -17,6 +17,8 @@ Settings are resolved in this order (highest to lowest priority):
 
 This means you can set defaults in `logifyx.yaml`, override them with environment variables for different environments, and still override specific values in code.
 
+If you do not set `LOG_FILE` or pass `file=...` in code, Logifyx falls back to `<logger name>.log`.
+
 ---
 
 ## Configuration Methods

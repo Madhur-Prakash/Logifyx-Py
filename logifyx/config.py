@@ -75,6 +75,13 @@ def load_config(
     config["schema_registry_url"] = _resolve_value("LOG_SCHEMA_REGISTRY", None)
     config["schema_compatibility"] = _resolve_value("LOG_SCHEMA_COMPATIBILITY", "BACKWARD")
 
+    file_provided = (
+        os.getenv("LOG_FILE") is not None
+        or "LOG_FILE" in env_values
+        or "LOG_FILE" in yaml_config
+    )
+    config["_file_is_default"] = not file_provided
+
     # remote request settings
     config["remote_timeout"] = int(_resolve_value("LOG_REMOTE_TIMEOUT", 5))
     config["max_remote_retries"] = int(_resolve_value("LOG_REMOTE_RETRIES", 3))
