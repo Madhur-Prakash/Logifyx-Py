@@ -5,6 +5,30 @@ All notable changes to Logifyx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.0.3...v1.0.4) - 2026-04-14
+
+### Fixed
+
+- Unified configuration loading behavior between CLI and code usage.
+- Added explicit config path support for both APIs and CLI:
+  - Code: `Logifyx(..., config_dir=..., env_file=..., yaml_file=...)`
+  - Code: `get_logify_logger(..., config_dir=..., env_file=..., yaml_file=...)`
+  - CLI: `logifyx --config --config-dir ... --env-file ... --yaml-file ...`
+- Default root behavior is now consistent: if no explicit path is passed, current working directory is used as config root.
+- Fixed `.env` leakage between consecutive config loads in the same process by reading dotenv values directly for merge logic.
+- Updated type stubs and docs to reflect the new path parameters and resolution rules.
+
+### Root Cause
+
+- CLI and runtime code paths were using different assumptions when discovering config files, causing mismatched behavior.
+- Config loading relied on process-level dotenv mutation, which could preserve values across subsequent loads and produce confusing results.
+
+### Verification
+
+- Verified cwd-default config loading (`.env` + `logifyx.yaml`) in code path.
+- Verified explicit `env_file`/`yaml_file` path loading in code path.
+- Verified precedence remains `environment > .env > yaml > defaults`.
+
 ## [1.0.3](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.0.2...v1.0.3) - 2026-04-14
 
 ### Fixed
