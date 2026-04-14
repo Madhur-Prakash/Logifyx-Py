@@ -7,14 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.5](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.0.4...v1.0.5) - 2026-04-14
 
-### Fixed
+### Release Notes
 
-- Default log file naming now follows the logger name when `file` is not set explicitly.
-- This keeps `Logifyx(name="billing-service")` writing to `billing-service.log` instead of always falling back to `app.log`.
+Logifyx 1.0.5 improves the default log file naming behavior so it now follows the logger name when no explicit file is configured.
 
-### Verification
+### Highlights
 
-- Confirmed the filename is derived from the logger name only when `LOG_FILE` or `file=` is not provided.
+- `Logifyx(name="billing-service")` now writes to `billing-service.log` by default.
+- Explicit file configuration still wins, including `file=...`, `LOG_FILE`, `.env`, and `logifyx.yaml` values.
+- Configuration loading now tracks whether the file name was explicitly provided, so name-based fallback only applies when it should.
+
+### Compatibility
+
+- Existing setups that already set a log file keep the same filename.
+- This change only affects the default path used when no file name is configured anywhere.
 
 ## [1.0.4](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.0.3...v1.0.4) - 2026-04-14
 
