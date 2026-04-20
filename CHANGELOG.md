@@ -5,6 +5,17 @@ All notable changes to Logifyx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.0.5...v1.0.6) - 2026-04-20
+
+### Fixed
+
+- Accepted lowercase log levels in `Logifyx`, e.g. `level="debug"` now works like `"DEBUG"`.
+- Added clear validation errors for invalid level names with the list of supported values.
+
+### Developer Experience
+
+- Updated level type hints to accept both integer and string-based log levels.
+
 ## [1.0.5](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.0.4...v1.0.5) - 2026-04-14
 
 ### Release Notes

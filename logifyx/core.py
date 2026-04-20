@@ -1,7 +1,7 @@
 import logging
 from logging.handlers import QueueHandler, QueueListener
 import time
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 import threading
 import queue
 import atexit
@@ -14,6 +14,22 @@ from .handler import get_handlers
 
 # Sentinel object to detect if a parameter was explicitly passed
 _sentinel = object()
+
+# Valid logging levels
+_VALID_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NOTSET"}
+
+
+def _normalize_and_validate_level(level: Union[int, str]) -> Union[int, str]:
+    """Normalize level string to uppercase and validate it."""
+    if isinstance(level, str):
+        level_upper = level.upper()
+        if level_upper not in _VALID_LEVELS:
+            raise ValueError(
+                f"Invalid log level: {level!r}. Must be one of: {', '.join(sorted(_VALID_LEVELS))}"
+            )
+        return level_upper
+    return level
+
 
 # Global queue and listener for async remote/kafka handling
 _log_queue: queue.Queue = queue.Queue(maxsize=10_00_000)  # Large maxsize to prevent blocking in high-throughput scenarios
@@ -129,7 +145,7 @@ class Logifyx(logging.Logger):
     def __init__(
         self,
         name: str = "app",
-        level: int = logging.NOTSET,  # Required by Logger base class
+        level: Union[int, str] = logging.NOTSET,  # Required by Logger base class
         config_dir = _sentinel,
         env_file = _sentinel,
         yaml_file = _sentinel,
@@ -150,6 +166,9 @@ class Logifyx(logging.Logger):
         max_remote_retries = _sentinel,
         remote_headers = _sentinel
     ):
+        # Normalize and validate level string
+        level = _normalize_and_validate_level(level)
+        
         # Initialize base Logger first
         super().__init__(name, level)
         
@@ -214,7 +233,7 @@ class Logifyx(logging.Logger):
         remote_timeout: Optional[int] = None,
         max_remote_retries: Optional[int] = None,
         remote_headers: Optional[Dict[str, str]] = None,
-        level: Optional[int] = None
+        level: Optional[Union[int, str]] = None
     ) -> "Logifyx":
         """
         Configure the logger with all options.
@@ -264,6 +283,8 @@ class Logifyx(logging.Logger):
             self.config["json_mode"] = False
 
         final_level = self.config.get("level", logging.INFO)
+        # Normalize and validate level
+        final_level = _normalize_and_validate_level(final_level)
         self.setLevel(final_level)
         
         self.propagate = False
