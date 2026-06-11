@@ -5,6 +5,34 @@ All notable changes to Logifyx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.0.6...v1.1.0) - 2026-06-11
+
+### Changed
+
+- **New log format** — output is now pipe-separated for both console and file:
+  ```
+  2026-06-11 19:45:17 | INFO     | myapp:handle_request:42 - User logged in
+  ```
+- **Color on by default** — no need to pass `color=True`; colored output is the default. Pass `color=False` to opt out (e.g. when piping to a file).
+- **Full-line coloring** — when color is enabled, the entire log line is colored: date in green, level in its level color, `name:func:line` in blue, message in level color.
+- **Removed preset/mode system** — the `mode` parameter (`dev`, `prod`, `simple`) has been removed from all APIs. Configure behavior directly via `color`, `level`, and `json_mode` kwargs or env vars.
+
+### Fixed
+
+- **`json_mode=True`** now outputs actual single-line JSON objects instead of the same text as plain mode. Each line is a valid JSON record: `{"timestamp": "...", "level": "...", "logger": "...", "function": "...", "line": N, "message": "..."}`.
+- **`<module>` in JSON output** — top-level code no longer shows `"function": "<module>"`. The filename (without `.py`) is used instead.
+- **`mask` config override bug** — `LOG_MASK=false` in `.env` or `logifyx.yaml` was silently ignored because `mask: bool = True` in `configure()` always overrode it. Changed to `mask: Optional[bool] = None` so env/yaml values are respected. Default behavior (masking on) is unchanged.
+- **`LOG_REMOTE_HEADERS` env var** was undocumented despite being fully supported. Corrected in all docs.
+
+### Documentation
+
+- Comprehensive rewrite of all five documentation files:
+  - **configuration.md** — full env var reference table with defaults, priority order, format diagram, config method examples
+  - **handlers.md** — handler activation conditions, format examples, async architecture explained
+  - **kafka.md** — what Avro is, what Schema Registry is, Docker Compose setup, all Kafka CLI commands, Python Avro consumer with wire format decoding, troubleshooting table
+  - **cli.md** — complete env var quick reference, use-case examples, debug tips
+  - **docs/README.md** — "Where to start" guide with cross-links between all docs
+
 ## [1.0.6](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.0.5...v1.0.6) - 2026-04-20
 
 ### Fixed
