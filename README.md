@@ -1,6 +1,7 @@
 <div align="center">
 
-# Logifyx
+<img width="473" height="136" alt="ascii-art-text" src="https://github.com/user-attachments/assets/b2e7cc20-4491-4937-864c-54705bc1a97b" />
+
 
 [![PyPI version](https://img.shields.io/pypi/v/logifyx.svg?logo=pypi&label=logifyx%20on%20PyPI)](https://pypi.org/project/logifyx/)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/logifyx?period=total&units=INTERNATIONAL_SYSTEM&left_color=GREY&right_color=BLUE&left_text=downloads)](https://pepy.tech/projects/logifyx)
