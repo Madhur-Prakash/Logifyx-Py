@@ -1,40 +1,55 @@
 import logging
 from pythonjsonlogger import jsonlogger
-import colorlog
 
 LEVEL_COLORS = {
-    "DEBUG":    "\033[36m",      # cyan
-    "INFO":     "\033[32m",      # green
-    "WARNING":  "\033[33m",      # yellow
-    "ERROR":    "\033[31m",      # red
-    "CRITICAL": "\033[1;31m",    # bold red
+    "DEBUG":    "\033[36m",
+    "INFO":     "\033[32m",
+    "WARNING":  "\033[33m",
+    "ERROR":    "\033[31m",
+    "CRITICAL": "\033[1;31m",
 }
-RESET = "\033[0m"
+RESET  = "\033[0m"
+BLUE   = "\033[34m"
+WHITE  = "\033[97m"
+
+
+def _format_line(record, datefmt, color=True):
+    dt = logging.Formatter(datefmt=datefmt).formatTime(record, datefmt)
+    level_color = LEVEL_COLORS.get(record.levelname, "")
+    level = record.levelname.ljust(8)
+
+    if color:
+        colored_level    = f"{level_color}{level}{RESET}"
+        colored_location = f"{BLUE}{record.name}{WHITE}:{BLUE}{record.funcName}:{record.lineno}{RESET}"
+        colored_message  = f"{level_color}{record.getMessage()}{RESET}"
+        return f"{dt} | {colored_level} | {colored_location} - {colored_message}"
+
+    location = f"{record.name}:{record.funcName}:{record.lineno}"
+    return f"{dt} | {level} | {location} - {record.getMessage()}"
 
 
 class LogifyxFormatter(logging.Formatter):
-    """Default formatter: only the level name is colored."""
+    """Default formatter: entire line colored by level."""
 
     def format(self, record):
-        dt = self.formatTime(record, self.datefmt)
-        color = LEVEL_COLORS.get(record.levelname, "")
-        level = f"{color}{record.levelname.ljust(8)}{RESET}"
-        location = f"{record.name}:{record.funcName}:{record.lineno}"
-        return f"{dt} | {level} | {location} - {record.getMessage()}"
+        return _format_line(record, self.datefmt, color=True)
+
+
+class PlainLogifyxFormatter(logging.Formatter):
+    """Plain formatter: no color (opt-in via color=False)."""
+
+    def format(self, record):
+        return _format_line(record, self.datefmt, color=False)
 
 
 class CompactJsonFormatter(jsonlogger.JsonFormatter):
-    """JSON-mode formatter: only the level name is colored."""
+    """JSON-mode formatter: entire line colored by level."""
 
     def format(self, record):
-        dt = self.formatTime(record, self.datefmt)
-        color = LEVEL_COLORS.get(record.levelname, "")
-        level = f"{color}{record.levelname.ljust(8)}{RESET}"
-        location = f"{record.name}:{record.funcName}:{record.lineno}"
-        return f"{dt} | {level} | {location} - {record.getMessage()}"
+        return _format_line(record, self.datefmt, color=True)
 
 
-def get_formatter(json_mode=False, color=False):
+def get_formatter(json_mode=False, color=True):
     datefmt = "%Y-%m-%d %H:%M:%S"
 
     if json_mode:
@@ -42,19 +57,7 @@ def get_formatter(json_mode=False, color=False):
         formatter.datefmt = datefmt
         return formatter
 
-    if color:
-        # Entire line is colored
-        return colorlog.ColoredFormatter(
-            "%(asctime)s | %(log_color)s%(levelname)-8s | %(name)s:%(funcName)s:%(lineno)d - %(message)s%(reset)s",
-            datefmt=datefmt,
-            log_colors={
-                "DEBUG":    "cyan",
-                "INFO":     "green",
-                "WARNING":  "yellow",
-                "ERROR":    "red",
-                "CRITICAL": "bold_red",
-            },
-        )
+    if not color:
+        return PlainLogifyxFormatter(datefmt=datefmt)
 
-    # Default: only level name is colored
     return LogifyxFormatter(datefmt=datefmt)
