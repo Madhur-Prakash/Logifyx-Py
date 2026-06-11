@@ -58,7 +58,7 @@ def get_formatter(json_mode=False, color=True):
         formatter.datefmt = datefmt
         return formatter
 
-    if not color:
+    if color is False:
         return PlainLogifyxFormatter(datefmt=datefmt)
 
     return LogifyxFormatter(datefmt=datefmt)

@@ -59,7 +59,7 @@ def load_config(
         return os.getenv(key, env_values.get(key, yaml_config.get(key, default)))
 
     config["level"] = _resolve_value("LOG_LEVEL", "INFO")
-    config["color"] = _as_bool(_resolve_value("LOG_COLOR", False), False)
+    config["color"] = _as_bool(_resolve_value("LOG_COLOR", True), True)
     config["max_bytes"] = int(_resolve_value("LOG_MAX_BYTES", 10_000_000))
     config["backup_count"] = int(_resolve_value("LOG_BACKUP_COUNT", 5))
     config["log_dir"] = _resolve_value("LOG_DIR", "logs")
