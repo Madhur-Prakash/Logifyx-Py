@@ -24,6 +24,9 @@ log.error("Login failed")
 
 def loef():
     log.error("An error occurred in loef()")
+    log.error("An error occurred in loef()")
+    log.error("An error occurred in loef()")
+    log.info("An error occurred in loef()")
 
 # ========================================
 # Option 2: Global Registration (Recommended for large apps)

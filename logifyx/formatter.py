@@ -49,11 +49,12 @@ class CompactJsonFormatter(jsonlogger.JsonFormatter):
 
     def format(self, record):
         dt = logging.Formatter(datefmt=self.datefmt).formatTime(record, self.datefmt)
+        func = record.filename.replace(".py", "") if record.funcName == "<module>" else record.funcName
         return json.dumps({
             "timestamp": dt,
             "level":     record.levelname,
             "logger":    record.name,
-            "function":  record.funcName,
+            "function":  func,
             "line":      record.lineno,
             "message":   record.getMessage(),
         }, ensure_ascii=False)
