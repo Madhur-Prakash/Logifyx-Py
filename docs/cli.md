@@ -1,15 +1,20 @@
-# 🔧 CLI Reference
+[← Docs Index](README.md) · [Configuration](configuration.md) · [Handlers](handlers.md) · [Kafka](kafka.md) · [README](../README.md)
 
-Logifyx includes a command-line interface for inspecting and debugging your logging configuration.
+---
+
+# CLI Reference
+
+Logifyx ships a `logifyx` command that lets you inspect the fully resolved configuration from the terminal — useful for verifying settings before deployment or debugging why a value isn't what you expect.
 
 ---
 
 ## Installation
 
-The CLI is automatically available after installing Logifyx:
+The CLI is installed automatically with the package:
 
 ```bash
 pip install logifyx
+logifyx --help
 ```
 
 ---
@@ -18,222 +23,130 @@ pip install logifyx
 
 ### `logifyx --config`
 
-Display the resolved Logifyx configuration from all sources.
+Print the merged configuration that Logifyx would use if started from the current directory. Combines system env vars, `.env`, `logifyx.yaml`, and defaults — applying them in priority order.
 
 ```bash
 logifyx --config
 ```
 
-By default, the CLI reads `.env` and `logifyx.yaml` from the current working directory. You can override that with `--config-dir`, `--env-file`, and `--yaml-file`.
-
-**Output:**
+Example output:
 
 ```
-📦 Logifyx Configuration (config dir: /path/to/project):
+Logifyx Configuration (logifyx.yaml: found):
 
 {
-    "level": "DEBUG",
+    "level": "INFO",
     "color": true,
     "max_bytes": 10000000,
     "backup_count": 5,
     "log_dir": "logs",
     "file": "app.log",
-    "mode": "dev",
     "json_mode": false,
     "mask": true,
     "remote_url": null,
-    "kafka_servers": "localhost:9092",
+    "remote_timeout": 5,
+    "max_remote_retries": 3,
+    "remote_headers": {"Content-Type": "application/json"},
+    "kafka_servers": null,
     "kafka_topic": "logs",
     "schema_registry_url": null,
     "schema_compatibility": "BACKWARD"
 }
 ```
 
-**What it shows:**
-- All resolved configuration values
-- Whether `logifyx.yaml` was found
-- Merged values from env, yaml, and defaults
+### `logifyx --config-dir <path>`
 
-**Overrides:**
+Read `.env` and `logifyx.yaml` from a specific directory instead of the current working directory:
 
 ```bash
-logifyx --config --config-dir ./project
-logifyx --config --env-file ./project/.env --yaml-file ./project/logifyx.yaml
+logifyx --config --config-dir ./services/auth
 ```
 
----
+### `logifyx --env-file <path>` and `--yaml-file <path>`
+
+Point to explicit file paths instead of relying on directory scanning:
+
+```bash
+logifyx --config --env-file ./deploy/prod.env --yaml-file ./deploy/logifyx.yaml
+```
 
 ### `logifyx --help`
 
-Display help information.
-
 ```bash
 logifyx --help
-```
-
-**Output:**
-
-```
-usage: logifyx [-h] [--config] [--config-dir CONFIG_DIR] [--env-file ENV_FILE] [--yaml-file YAML_FILE]
-
-Logifyx CLI Tool
-
-options:
-  -h, --help  show this help message and exit
-  --config    Show resolved Logifyx configuration (from logifyx.yaml + env)
-  --config-dir CONFIG_DIR
-              Load .env and logifyx.yaml from a specific directory
-  --env-file ENV_FILE
-              Load environment variables from a specific .env file
-  --yaml-file YAML_FILE
-              Load Logifyx YAML configuration from a specific file
-```
-
----
-
-## Configuration Resolution
-
-The `--config` command shows the fully resolved configuration, merging:
-
-1. **Environment variables** (highest priority)
-2. **logifyx.yaml** (if present)
-3. **Default values** (lowest priority)
-
-### Example: Debugging Configuration
-
-**logifyx.yaml:**
-```yaml
-LOG_LEVEL: DEBUG
-LOG_FILE: app.log
-LOG_COLOR: True
-```
-
-**.env:**
-```
-LOG_LEVEL=WARNING
-```
-
-**CLI output:**
-```bash
-$ logifyx --config
-
-📦 Logifyx Configuration (logifyx.yaml: found):
-
-{
-    "level": "WARNING",    # From .env (overrides yaml)
-    "file": "app.log",     # From yaml
-    "color": true,         # From yaml
-    ...
-}
-```
-
----
-
-## Use Cases
-
-### 1. Verify Configuration Before Deployment
-
-```bash
-# On your production server
-export LOG_LEVEL=INFO
-export LOG_KAFKA_SERVERS=kafka.prod:9092
-
-logifyx --config
-# Verify all settings are correct
-```
-
-### 2. Debug Missing Configuration
-
-```bash
-logifyx --config
-# Check if logifyx.yaml was found
-# Verify expected values are set
-```
-
-### 3. CI/CD Pipeline Validation
-
-```bash
-# In your deployment script
-logifyx --config | grep "kafka_servers"
-# Ensure Kafka is configured for production
-```
-
----
-
-### Configuration File Detection
-
-The CLI looks for `.env` and `logifyx.yaml` in the current working directory unless you pass explicit paths:
-
-```bash
-# Shows "logifyx.yaml: found"
-$ cd /path/to/project
-$ logifyx --config
-
-📦 Logifyx Configuration (config dir: /path/to/project):
-...
-
-# Shows "logifyx.yaml: not found"
-$ cd /tmp
-$ logifyx --config
-
-📦 Logifyx Configuration (config dir: /path/to/project):
-...
-
-If `.env` and `logifyx.yaml` exist in the current working directory, the command shows the resolved configuration from those files. If they do not exist, the CLI falls back to defaults.
-```
 ```
 
 ---
 
 ## Environment Variable Reference
 
-All configuration can be set via environment variables:
+Every setting that can be in `.env` or `logifyx.yaml`:
 
-| Variable | Description |
-|----------|-------------|
-| `LOG_LEVEL` | Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL) |
-| `LOG_FILE` | Log file name |
-| `LOG_DIR` | Log directory |
-| `LOG_COLOR` | Enable colors (True/False) |
-| `LOG_JSON` | Enable JSON mode (True/False) |
-| `LOG_MASK` | Enable masking (True/False) |
-| `LOG_MODE` | Preset mode (dev/prod/simple) |
-| `LOG_MAX_BYTES` | Max file size before rotation |
-| `LOG_BACKUP_COUNT` | Number of backup files |
-| `LOG_REMOTE` | Remote HTTP endpoint URL |
-| `LOG_KAFKA_SERVERS` | Kafka bootstrap servers |
-| `LOG_KAFKA_TOPIC` | Kafka topic name |
-| `LOG_SCHEMA_REGISTRY` | Schema Registry URL |
-| `LOG_SCHEMA_COMPATIBILITY` | Schema compatibility mode |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LOG_LEVEL` | `INFO` | Minimum log level. One of `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. |
+| `LOG_COLOR` | `true` | Color console output by level. Set `false` for plain text. |
+| `LOG_JSON` | `false` | Emit JSON lines instead of pipe-separated text. Incompatible with `LOG_COLOR`. |
+| `LOG_MASK` | `true` | Auto-mask `password=`, `token=`, `secret=`, `api_key=` values. |
+| `LOG_FILE` | `<name>.log` | Log file name inside `LOG_DIR`. |
+| `LOG_DIR` | `logs` | Directory for log files. Created if it does not exist. |
+| `LOG_MAX_BYTES` | `10000000` | Rotate the log file after it reaches this many bytes (10 MB). |
+| `LOG_BACKUP_COUNT` | `5` | Number of rotated backup files to keep. |
+| `LOG_REMOTE` | `None` | HTTP(S) URL to POST log records to. Leave unset to disable. |
+| `LOG_REMOTE_TIMEOUT` | `5` | HTTP request timeout in seconds. |
+| `LOG_REMOTE_RETRIES` | `3` | Consecutive failures before the remote handler disables itself. |
+| `LOG_REMOTE_HEADERS` | `{"Content-Type": "application/json"}` | JSON string of extra HTTP headers (e.g. `Authorization`). |
+| `LOG_KAFKA_SERVERS` | `None` | Kafka bootstrap servers. Leave unset to disable. Example: `localhost:9092`. |
+| `LOG_KAFKA_TOPIC` | `logs` | Kafka topic to publish log records to. |
+| `LOG_SCHEMA_REGISTRY` | `None` | Confluent Schema Registry URL. Enables Confluent wire format. |
+| `LOG_SCHEMA_COMPATIBILITY` | `BACKWARD` | Schema evolution rule. Options: `BACKWARD`, `FORWARD`, `FULL`, `NONE`. |
 
 ---
 
-## Tips
+## Use Cases
 
-### Quick Environment Check
+### Verify config before deploying
 
 ```bash
-# See just Kafka settings
-logifyx --config | grep kafka
+export LOG_LEVEL=INFO
+export LOG_KAFKA_SERVERS=kafka.prod:9092
 
-# See just file settings  
-logifyx --config | grep -E "file|dir"
+logifyx --config
+# Visually confirm all values are what you expect
 ```
 
-### Export for Comparison
+### Check a specific setting
 
 ```bash
-# Save config to file
-logifyx --config > config-snapshot.json
+# Is Kafka configured?
+logifyx --config | grep kafka_servers
 
-# Compare environments
+# What log level will be used?
+logifyx --config | grep level
+```
+
+### Compare dev vs prod
+
+```bash
+logifyx --config --env-file .env.dev  > config-dev.json
+logifyx --config --env-file .env.prod > config-prod.json
 diff config-dev.json config-prod.json
 ```
 
+### Debug why a value is wrong
+
+If a value is not what you expect, check the [priority order](configuration.md#configuration-guide):
+
+1. Is it set as a real shell env var? (`echo $LOG_LEVEL`)
+2. Is it in `.env`? (Does the file have duplicate keys? Last one wins.)
+3. Is it in `logifyx.yaml`?
+4. If none of the above, the default applies.
+
 ---
 
-## Next Steps
+## See also
 
-- [Configuration Guide](configuration.md) - All configuration options
-- [Handlers Reference](handlers.md) - Output handlers explained
-- [Kafka Streaming](kafka.md) - Kafka setup guide
+- [Configuration Guide](configuration.md) — complete env var reference with defaults and descriptions
+- [Handlers Reference](handlers.md) — what gets enabled once config is applied
+- [Kafka Streaming](kafka.md) — Kafka-specific CLI commands (topic, Schema Registry)
+- [README](../README.md) — quick-start examples

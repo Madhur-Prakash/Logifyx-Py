@@ -1,42 +1,42 @@
-# 📂 Handlers Reference
+[← Docs Index](README.md) · [Configuration](configuration.md) · [Kafka](kafka.md) · [CLI](cli.md) · [README](../README.md)
 
-Logifyx uses multiple output handlers to write logs to different destinations simultaneously. This document explains each handler and how to configure them.
+---
+
+# Handlers Reference
+
+Logifyx writes logs to multiple destinations simultaneously. Handlers are created automatically based on your configuration — you never register them manually.
 
 ---
 
 ## Overview
 
-| Handler | Description | Auto-enabled |
-|---------|-------------|--------------|
-| [Console Handler](#console-handler) | Colored stdout output | ✅ Always |
-| [File Handler](#file-handler) | Rotating file with backups | ✅ Always |
-| [Remote HTTP Handler](#remote-http-handler) | POST to HTTP endpoint | When `remote_url` set |
-| [Kafka Handler](#kafka-handler) | Stream to Kafka topic | When `kafka_servers` set |
-
-All handlers are managed automatically by Logifyx. You just need to provide the configuration.
+| Handler | Always on? | Enabled when |
+|---------|-----------|--------------|
+| Console | Yes | Always |
+| File | Yes | Always |
+| Remote HTTP | No | `remote_url` is set |
+| Kafka | No | `kafka_servers` is set |
 
 ---
 
 ## Console Handler
 
-**Always enabled.** Writes logs to stdout with optional color coding.
+Writes every log record to stdout.
 
-### Features
+### Log format
 
-- Color-coded by log level (when `color=True`)
-- Human-readable format for development
-- Shows timestamp, logger name, level, message, file, and line number
-
-### Configuration
-
-```python
-log = Logifyx(
-    name="myapp",
-    color=True  # Enable colored output
-)
+```
+2026-06-11 19:45:17 | INFO     | myapp:handle_request:42 - User logged in
 ```
 
-### Color Mapping
+- Timestamp — always green
+- Level — color-coded by severity (cyan / green / yellow / red / bold-red)
+- `name:function:line` — blue
+- Message — color-coded by severity
+
+Color is on by default (`LOG_COLOR=true`). Pass `color=False` to get plain text — useful when you pipe stdout to a file or another tool. All color and format settings are listed in the [Configuration Guide](configuration.md#console-output).
+
+### Color map
 
 | Level | Color |
 |-------|-------|
@@ -46,277 +46,151 @@ log = Logifyx(
 | ERROR | Red |
 | CRITICAL | Bold Red |
 
-### Example Output
+### JSON mode
 
+When `json_mode=True` (or `LOG_JSON=true`), each record is a single-line JSON object instead:
+
+```json
+{"timestamp": "2026-06-11 19:45:17", "level": "INFO", "logger": "myapp", "function": "handle_request", "line": 42, "message": "User logged in"}
 ```
-2024-02-11 15:30:45 - myapp - INFO - Server started - /app/main.py - main.py - 42
-2024-02-11 15:30:46 - myapp - WARNING - High memory usage - /app/main.py - main.py - 56
-2024-02-11 15:30:47 - myapp - ERROR - Connection failed - /app/main.py - main.py - 78
-```
+
+`color` and `json_mode` are mutually exclusive. If both are set, `json_mode` is silently disabled.
 
 ---
 
 ## File Handler
 
-**Always enabled.** Writes logs to a rotating file with automatic backup management.
+Writes logs to a rotating file. Always enabled alongside the console handler.
 
-### Features
-
-- **Rotating files**: Automatically rotates when file reaches size limit
-- **Backup management**: Keeps N backup files, deletes oldest
-- **Concurrent-safe**: Uses `ConcurrentRotatingFileHandler` for multi-process safety
-- **Auto-creates directory**: Creates log directory if it doesn't exist
-
-### Configuration
+- Multi-process safe (`ConcurrentRotatingFileHandler`)
+- Log directory is created automatically if it does not exist
+- Plain text format (no ANSI color codes)
 
 ```python
 log = Logifyx(
     name="myapp",
-    file="myapp.log",       # Log file name
-    log_dir="logs",         # Directory for logs
-    max_bytes=10_000_000,   # 10MB max file size
-    backup_count=5          # Keep 5 backup files
+    file="myapp.log",       # default: <name>.log
+    log_dir="logs",          # default: logs/
+    max_bytes=10_000_000,    # rotate when file hits 10 MB
+    backup_count=5,          # keep 5 old files
 )
 ```
 
-### File Structure
+### Rotation behaviour
 
-```
-logs/
-├── myapp.log           # Current log file
-├── myapp.log.1         # Previous (most recent backup)
-├── myapp.log.2         # Older backup
-├── myapp.log.3
-├── myapp.log.4
-└── myapp.log.5         # Oldest backup (deleted when 6th is created)
-```
-
-### Rotation Behavior
-
-1. When `myapp.log` reaches `max_bytes` (10MB default)
-2. Existing backups are renamed: `.1` → `.2`, `.2` → `.3`, etc.
-3. `myapp.log` becomes `myapp.log.1`
-4. New `myapp.log` is created
-5. If backups exceed `backup_count`, oldest is deleted
+When `myapp.log` hits `max_bytes`:
+1. `myapp.log.4` → deleted
+2. `myapp.log.3` → `myapp.log.4`
+3. `myapp.log.2` → `myapp.log.3`
+4. `myapp.log.1` → `myapp.log.2`
+5. `myapp.log`   → `myapp.log.1`
+6. New empty `myapp.log` is created
 
 ---
 
 ## Remote HTTP Handler
 
-**Enabled when `remote_url` is set.** Sends log records to an HTTP endpoint via POST requests.
+POSTs log records as JSON to an HTTP endpoint. Enabled when `remote_url` is set.
 
-### Features
-
-- **Queue-based async**: Uses `QueueHandler` + `QueueListener` for non-blocking sends
-- **Thread-safe**: Internal locking for safe concurrent access
-- **Auto-retry**: Retries on failures
-- **Circuit breaker**: Disables after N consecutive failures
-- **JSON payload**: Structured log data with exception info
-
-### Architecture
+Runs fully in the background — the main thread is never blocked waiting for HTTP.
 
 ```
-Logifyx Logger
-    ↓
-QueueHandler (instant, non-blocking)
-    ↓
-QueueListener (background thread)
-    ↓
-RemoteHandler → HTTP POST
+your code → log.info()
+               ↓
+         QueueHandler  (instant, non-blocking)
+               ↓
+         QueueListener (background thread)
+               ↓
+         RemoteHandler → HTTP POST → your server
 ```
-
-This ensures logging never blocks your main application thread.
-
-### Configuration
 
 ```python
 log = Logifyx(
     name="myapp",
-    remote_url="http://localhost:5000/logs"
+    remote_url="http://log-server:5000/logs",
+    remote_timeout=5,           # seconds before giving up on one request
+    max_remote_retries=3,       # disable handler after this many consecutive failures
+    remote_headers={"Authorization": "Bearer token"},
 )
 ```
 
-Or via config:
-
-```yaml
-# logifyx.yaml
-LOG_REMOTE: http://log-server:5000/logs
-```
-
-### Payload Format
-
-Each log record is sent as a JSON POST request:
+### Payload
 
 ```json
 {
   "level": "INFO",
-  "message": "2024-02-11 15:30:45 - auth - INFO - User logged in",
-  "logger": "auth-service",
-  "timestamp": 1707666000.123456,
-  "file": "/app/auth/login.py",
+  "message": "User logged in",
+  "service": "myapp",
+  "timestamp": 1749657917.123,
+  "file": "/app/auth.py",
   "line": 42,
   "func": "handle_login",
   "exception": null
 }
 ```
 
-### Receiving Logs
+### Circuit breaker
 
-Example Flask server to receive logs:
+After `max_remote_retries` consecutive failures the handler marks itself disabled and stops trying. This prevents a dead log server from slowing your app. The handler re-enables on the next process restart.
+
+### Example receiving server (Flask)
 
 ```python
 from flask import Flask, request
 
 app = Flask(__name__)
 
-@app.route('/logs', methods=['POST'])
-def receive_logs():
-    log_data = request.json
-    print(f"[{log_data['level']}] {log_data['service']}: {log_data['message']}")
-    return {"status": "received"}, 200
+@app.route("/logs", methods=["POST"])
+def receive():
+    data = request.json
+    print(f"[{data['level']}] {data['service']}: {data['message']}")
+    return {"status": "ok"}, 200
 
-if __name__ == '__main__':
-    app.run(port=5000)
-```
-
-### Circuit Breaker
-
-The handler automatically disables itself after 3 consecutive failures to prevent:
-- Blocking the application
-- Flooding a failing server
-- Memory buildup from queued requests
-
-```python
-# Internal behavior:
-# After 3 failures → handler.disabled = True
-# No more attempts until restart
+app.run(port=5000)
 ```
 
 ---
 
 ## Kafka Handler
 
-**Enabled when `kafka_servers` is set.** Streams logs to Apache Kafka with Avro serialization.
+Streams log records to a Kafka topic using Avro serialization. Enabled when `kafka_servers` is set.
 
-### Features
-
-- **Async producer**: Non-blocking with `aiokafka`
-- **Avro serialization**: Efficient binary format
-- **Schema Registry**: Optional Confluent Schema Registry integration
-- **Schema evolution**: Supports BACKWARD, FORWARD, FULL compatibility
-- **Circuit breaker**: Auto-disables after failures
-- **Compression**: Gzip compression by default
-
-### Configuration
+Like the Remote HTTP handler, Kafka sends happen in the background via a `QueueHandler` + `QueueListener`.
 
 ```python
 log = Logifyx(
     name="myapp",
     kafka_servers="localhost:9092",
     kafka_topic="app-logs",
-    schema_registry_url="http://localhost:8081",  # Optional
-    schema_compatibility="BACKWARD"
+    schema_registry_url="http://localhost:8081",  # optional
+    schema_compatibility="BACKWARD",
 )
 ```
 
-Or via config:
-
-```yaml
-# logifyx.yaml
-LOG_KAFKA_SERVERS: localhost:9092
-LOG_KAFKA_TOPIC: app-logs
-LOG_SCHEMA_REGISTRY: http://localhost:8081
-LOG_SCHEMA_COMPATIBILITY: BACKWARD
-```
-
-### Avro Schema
-
-Logs are serialized using this Avro schema:
-
-```json
-{
-  "type": "record",
-  "name": "LogRecord",
-  "namespace": "com.logifyx.logs",
-  "fields": [
-    {"name": "level", "type": "string"},
-    {"name": "message", "type": "string"},
-    {"name": "service", "type": "string"},
-    {"name": "timestamp", "type": "string"},
-    {"name": "file", "type": ["null", "string"], "default": null},
-    {"name": "line", "type": ["null", "int"], "default": null},
-    {"name": "function", "type": ["null", "string"], "default": null},
-    {"name": "exception", "type": ["null", "string"], "default": null},
-    {"name": "extra", "type": ["null", "string"], "default": null},
-    {"name": "schema_version", "type": "int", "default": 1}
-  ]
-}
-```
-
-📖 See [Kafka Streaming Guide](kafka.md) for detailed setup instructions.
+See the [Kafka Streaming guide](kafka.md) for full setup instructions including Docker, CLI commands, Avro schema, and a Python consumer.
 
 ---
 
 ## Sensitive Data Masking
 
-All handlers support sensitive data masking via the `MaskFilter`.
+All handlers run log messages through `MaskFilter` when `mask=True` (default). The following patterns are replaced with `****`:
 
-### Masked Patterns
+| Pattern matched | Example |
+|----------------|---------|
+| `password=<value>` | `password=secret` → `****` |
+| `token=<value>` | `token=abc123` → `****` |
+| `secret=<value>` | `secret=xyz` → `****` |
+| `api_key=<value>` | `api_key=key` → `****` |
+| `access_key=<value>` | `access_key=k` → `****` |
+| `access_token=<value>` | `access_token=t` → `****` |
 
-```python
-SENSITIVE = [
-    r"password=\S+",
-    r"token=\S+",
-    r"secret=\S+",
-    r"api_key=\S+",
-    r"access_key=\S+",
-    r"access_token=\S+",
-]
-```
-
-### Example
-
-```python
-log = Logifyx(name="auth", mask=True)
-
-log.info("Login attempt password=secret123 token=abc")
-# All handlers receive: "Login attempt **** ****"
-```
+Masking happens before the record reaches any handler, so the value never appears in the file, remote payload, or Kafka message either.
 
 ---
 
-## Handler Priority and Formatting
+## See also
 
-### Format by Handler Type
-
-| Handler | Color | JSON |
-|---------|-------|------|
-| Console | ✅ Respects `color` setting | ✅ If `json_mode=True` |
-| File | ❌ Never (not readable in files) | ✅ If `json_mode=True` |
-| Remote HTTP | ❌ N/A (sends JSON payload) | Always JSON |
-| Kafka | ❌ N/A (sends Avro) | Always Avro/JSON |
-
-### Log Format
-
-Standard format (non-JSON):
-```
-%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(pathname)s - %(filename)s - %(lineno)d
-```
-
-Example:
-```
-2024-02-11 15:30:45 - myapp - INFO - Server started - /app/main.py - main.py - 42
-```
-
-JSON format (`json_mode=True`):
-```json
-{"asctime": "2024-02-11 15:30:45", "name": "myapp", "levelname": "INFO", "message": "Server started"}
-```
-
----
-
-## Next Steps
-
-- [Configuration Guide](configuration.md) - All configuration options
-- [Kafka Streaming](kafka.md) - Detailed Kafka setup
-- [CLI Reference](cli.md) - Command line tools
+- [Configuration Guide](configuration.md) — all env vars that control handler behaviour
+- [Kafka Streaming](kafka.md) — full Kafka + Avro + Schema Registry setup
+- [CLI Reference](cli.md) — inspect which handlers will be active for a given config
+- [README](../README.md) — quick-start examples

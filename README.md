@@ -14,7 +14,7 @@
 
 [View on PyPI](https://pypi.org/project/logifyx/)
 
-[Quick Start](#quick-start) • [Features](#features) • [Configuration](#configuration) • [Handlers](#handlers) • [Kafka Streaming](#kafka-streaming) • [CLI](#cli-tool) • [API Reference](#api-reference)
+[Quick Start](#quick-start) • [Features](#features) • [Configuration](#configuration) • [Handlers](#handlers) • [Kafka Streaming](#kafka-streaming) • [CLI](#cli-tool) • [API Reference](#api-reference) • [Full Docs](docs/README.md)
 
 </div>
 
@@ -25,7 +25,6 @@
 - [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-- [Preset Modes](#preset-modes)
 - [Configuration](#configuration)
 - [Handlers](#handlers)
     - [Console Handler](#console-handler)
@@ -56,7 +55,6 @@
 | **JSON Mode** | Structured JSON logging for log aggregators |
 | **YAML + ENV Config** | Configure via `yaml` file, environment, or code |
 | **Zero Config Mode** | Works out of the box with sensible defaults |
-| **Preset Modes** | Quick setup with `dev`, `prod`, and `simple` presets |
 | **CLI Tool** | Inspect configuration from command line |
 | **Global Registration** | Use `setup_logify()` for framework-level integration |
 | **Context Injection** | Add `request_id`, `user_id` to logs with `ContextLoggerAdapter` |
@@ -79,7 +77,6 @@ pip install logifyx[kafka]
 ```
 
 **Dependencies:**
-- `colorlog` - Colored console output
 - `python-json-logger` - JSON formatting
 - `pyyaml` - YAML configuration
 - `concurrent-log-handler` - Multi-process safe file handling
@@ -106,18 +103,6 @@ log.error("Something went wrong")
 
 If you do not pass `file=...`, Logifyx writes to `<name>.log` by default, so the example above creates `myapp.log`.
 
-### With Presets
-
-```python
-from logifyx import Logifyx
-
-# Development mode: DEBUG level, colored output
-log = Logifyx(name="myapp", mode="dev")
-
-# Production mode: INFO level, JSON output
-log = Logifyx(name="myapp", mode="prod")
-```
-
 ### Full Configuration
 
 ```python
@@ -125,7 +110,6 @@ from logifyx import Logifyx
 
 log = Logifyx(
     name="auth-service",
-    mode="prod",
     file="auth.log",
     log_dir="logs",
     color=True,
@@ -149,8 +133,8 @@ from logifyx import setup_logify, get_logify_logger
 setup_logify()
 
 # Now use get_logify_logger anywhere in your app
-log = get_logify_logger("auth", mode="prod", file="auth.log")
-api_log = get_logify_logger("api", mode="prod", file="api.log")
+log = get_logify_logger("auth", file="auth.log")
+api_log = get_logify_logger("api", file="api.log")
 ```
 
 ### Context Injection (Request Tracking)
@@ -158,7 +142,7 @@ api_log = get_logify_logger("api", mode="prod", file="api.log")
 ```python
 from logifyx import Logifyx, ContextLoggerAdapter
 
-log = Logifyx(name="auth", mode="prod")
+log = Logifyx(name="auth")
 
 # Wrap with context for request-scoped logging
 request_log = ContextLoggerAdapter(
@@ -184,58 +168,6 @@ flush(timeout=5.0)
 
 # Option 2: Full shutdown (called automatically via atexit)
 shutdown()
-```
-
----
-
-## 🎯 Preset Modes
-
-Logifyx includes preset configurations for common use cases:
-
-| Mode | Level | Color | JSON | Use Case |
-|------|-------|-------|------|----------|
-| `dev` | DEBUG | ✅ | ❌ | Local development with verbose, colorful output |
-| `prod` | INFO | ❌ | ✅ | Production with structured JSON logs |
-| `simple` | INFO | ❌ | ❌ | Basic plain-text logging |
-
-```python
-# Development mode
-log = Logifyx(name="myapp", mode="dev")   # Colorful debug logs
-
-# Production mode
-log = Logifyx(name="myapp", mode="prod")  # JSON production logs
-
-# Simple mode
-log = Logifyx(name="myapp", mode="simple")  # Plain text logs
-```
-
-### Preset Details
-
-**`dev` Mode:**
-```python
-{
-    "level": "DEBUG",
-    "color": True,
-    "json_mode": False
-}
-```
-
-**`prod` Mode:**
-```python
-{
-    "level": "INFO",
-    "color": False,
-    "json_mode": True
-}
-```
-
-**`simple` Mode:**
-```python
-{
-    "level": "INFO",
-    "color": False,
-    "json_mode": False
-}
 ```
 
 ---
@@ -300,7 +232,6 @@ Here's a complete `.env` file with all available options:
 
 # ---- Core Settings ----
 LOG_LEVEL=INFO                          # DEBUG, INFO, WARNING, ERROR, CRITICAL
-LOG_MODE=dev                            # dev, prod, simple
 
 # ---- Output Settings ----
 LOG_FILE=app.log                        # Log file name
@@ -340,7 +271,6 @@ LOG_DIR: logs
 LOG_COLOR: True
 LOG_JSON: False
 LOG_MASK: True
-LOG_MODE: dev
 
 # File Rotation
 LOG_MAX_BYTES: 10000000
@@ -369,7 +299,6 @@ LOG_SCHEMA_COMPATIBILITY: BACKWARD
 |--------|--------------|----------|---------|-------------|
 | `name` | - | - | `"app"` | Logger name (identifies the service) |
 | `level` | `LOG_LEVEL` | `LOG_LEVEL` | `"INFO"` | Minimum log level |
-| `mode` | `LOG_MODE` | `LOG_MODE` | `"dev"` | Preset mode (dev/prod/simple) |
 
 #### Output Settings
 
@@ -377,7 +306,7 @@ LOG_SCHEMA_COMPATIBILITY: BACKWARD
 |--------|--------------|----------|---------|-------------|
 | `file` | `LOG_FILE` | `LOG_FILE` | `"app.log"` | Log file name |
 | `log_dir` | `LOG_DIR` | `LOG_DIR` | `"logs"` | Directory for log files |
-| `color` | `LOG_COLOR` | `LOG_COLOR` | `False` | Enable colored console output |
+| `color` | `LOG_COLOR` | `LOG_COLOR` | `True` | Enable colored console output |
 | `json_mode` | `LOG_JSON` | `LOG_JSON` | `False` | Enable JSON formatted logs |
 | `mask` | `LOG_MASK` | `LOG_MASK` | `True` | Mask sensitive data |
 
@@ -450,9 +379,9 @@ log = Logifyx(name="myapp", color=True)
 #### Example Output
 
 ```
-2024-02-11 15:30:45 - myapp - INFO - Server started - /app/main.py - main.py - 42
-2024-02-11 15:30:46 - myapp - WARNING - High memory usage - /app/main.py - main.py - 56
-2024-02-11 15:30:47 - myapp - ERROR - Connection failed - /app/main.py - main.py - 78
+2026-06-11 19:45:17 | INFO     | myapp:<module>:42 - Server started
+2026-06-11 19:45:18 | WARNING  | myapp:<module>:56 - High memory usage
+2026-06-11 19:45:19 | ERROR    | myapp:handle_request:78 - Connection failed
 ```
 
 ### File Handler
@@ -593,7 +522,7 @@ Use `ContextLoggerAdapter` to inject structured context (request_id, user_id, et
 ```python
 from logifyx import Logifyx, ContextLoggerAdapter
 
-log = Logifyx(name="auth", mode="prod")
+log = Logifyx(name="auth")
 
 # Wrap logger with context for request-scoped logging
 request_log = ContextLoggerAdapter(
@@ -835,7 +764,6 @@ Logifyx Configuration (logifyx.yaml: found):
     "backup_count": 5,
     "log_dir": "logs",
     "file": "app.log",
-    "mode": "dev",
     "json_mode": false,
     "mask": true,
     "remote_url": null,
@@ -882,7 +810,6 @@ from logifyx import Logifyx
 log = Logifyx(
     name: str = "app",                    # Logger name
     level: int = logging.NOTSET,          # Log level
-    mode: str = None,                     # Preset mode (dev/prod/simple)
     json_mode: bool = None,               # JSON output
     remote_url: str = None,               # HTTP endpoint
     log_dir: str = None,                  # Log directory
@@ -981,7 +908,6 @@ from logifyx import Logifyx, ContextLoggerAdapter, get_logify_logger, setup_logi
 # Direct instantiation
 log = Logifyx(
     name="auth",
-    mode="dev",
     file="auth.log",
     color=True,
     mask=True
@@ -993,7 +919,7 @@ log.error("Login failed")
 
 # Global registration
 setup_logify()
-api_log = get_logify_logger("api", mode="dev", file="api.log")
+api_log = get_logify_logger("api", file="api.log")
 api_log.info("API endpoint hit")
 
 # Context injection
@@ -1045,7 +971,7 @@ logifyx/
 ├── handler.py       # Handler factory
 ├── formatter.py     # Log formatters
 ├── filters.py       # Sensitive data masking
-├── presets.py       # Mode presets (dev/prod/simple)
+├── presets.py       # (reserved)
 ├── remote.py        # HTTP remote handler
 ├── kafka.py         # Kafka + Avro handler
 └── cli.py           # CLI tool

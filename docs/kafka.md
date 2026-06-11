@@ -1,204 +1,54 @@
-# 📡 Kafka Streaming Guide
-
-Stream your logs to Apache Kafka with Avro serialization and Schema Registry support for enterprise-grade log aggregation.
+[← Docs Index](README.md) · [Configuration](configuration.md) · [Handlers](handlers.md) · [CLI](cli.md) · [README](../README.md)
 
 ---
 
-## Overview
+# Kafka Streaming Guide
 
-Logifyx's Kafka handler provides:
+Stream logs to Apache Kafka with Avro serialization and optional Schema Registry support.
 
-- **Async Producer**: Non-blocking log delivery using `aiokafka`
-- **Avro Serialization**: Efficient binary format with schema validation
-- **Schema Registry**: Confluent Schema Registry integration
-- **Schema Evolution**: BACKWARD, FORWARD, FULL compatibility modes
-- **Circuit Breaker**: Automatic disable after repeated failures
-- **Compression**: Gzip compression for efficient network usage
+---
+
+## What is Avro and why does Logifyx use it?
+
+**Avro** is a binary serialization format. Instead of sending logs as plain JSON text, Logifyx converts each log record into a compact binary blob using a fixed schema. This means:
+
+- **Smaller messages** — binary is more compact than JSON text
+- **Schema enforcement** — every producer and consumer agrees on exactly what fields exist and their types
+- **Schema evolution** — you can add optional fields to the schema later without breaking existing consumers
+
+When you also set `schema_registry_url`, Logifyx registers its schema with Confluent Schema Registry on startup. Each message then gets a 5-byte header (magic byte `0x00` + 4-byte schema ID) prepended — this is called the **Confluent wire format**. Consumers can use the schema ID to look up the schema and deserialize the message correctly even if the schema changes over time.
+
+Without `schema_registry_url`, Logifyx still serializes in Avro binary, just without the header.
+
+---
+
+## What is Schema Registry?
+
+The **Confluent Schema Registry** is a separate service (you run it alongside Kafka) that stores a versioned history of your Avro schemas. Its roles:
+
+1. **Single source of truth** — producers register their schema once; consumers fetch it by ID
+2. **Compatibility enforcement** — rejects schema changes that would break existing consumers (controlled by `schema_compatibility`)
+3. **Decoupling** — producers and consumers don't need to share schema files manually
+
+You do **not** need Schema Registry to use Kafka logging. If `schema_registry_url` is `None`, Logifyx sends raw Avro binary and consumers must have the schema themselves.
 
 ---
 
 ## Quick Start
 
-### 1. Install Dependencies
+### 1. Install dependencies
 
 ```bash
+# Minimal Kafka support
 pip install aiokafka fastavro
+
+# Or install everything at once
+pip install logifyx[kafka]
 ```
 
 ### 2. Start Kafka (Docker)
 
-```bash
-cd examples
-docker-compose up -d
-```
-
-### 3. Use Kafka Logging
-
-```python
-from logifyx import Logifyx
-
-log = Logifyx(
-    name="myapp",
-    kafka_servers="localhost:9092",
-    kafka_topic="app-logs"
-)
-
-log.info("This message goes to Kafka!")
-```
-
----
-
-## Configuration Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `kafka_servers` | Kafka bootstrap servers | Required |
-| `kafka_topic` | Topic to publish logs | `"logs"` |
-| `schema_registry_url` | Schema Registry URL | `None` |
-| `schema_compatibility` | Schema compatibility mode | `"BACKWARD"` |
-
-### Python Configuration
-
-```python
-log = Logifyx(
-    name="myapp",
-    kafka_servers="localhost:9092",
-    kafka_topic="app-logs",
-    schema_registry_url="http://localhost:8081",
-    schema_compatibility="BACKWARD"
-)
-```
-
-### YAML Configuration
-
-```yaml
-# logifyx.yaml
-LOG_KAFKA_SERVERS: localhost:9092
-LOG_KAFKA_TOPIC: app-logs
-LOG_SCHEMA_REGISTRY: http://localhost:8081
-LOG_SCHEMA_COMPATIBILITY: BACKWARD
-```
-
-### Environment Variables
-
-```bash
-export LOG_KAFKA_SERVERS=localhost:9092
-export LOG_KAFKA_TOPIC=app-logs
-export LOG_SCHEMA_REGISTRY=http://localhost:8081
-export LOG_SCHEMA_COMPATIBILITY=BACKWARD
-```
-
----
-
-## Avro Schema
-
-Logs are serialized using this Avro schema (v1):
-
-```json
-{
-  "type": "record",
-  "name": "LogRecord",
-  "namespace": "com.logifyx.logs",
-  "doc": "Log record schema v1",
-  "fields": [
-    {
-      "name": "level",
-      "type": "string",
-      "doc": "Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"
-    },
-    {
-      "name": "message",
-      "type": "string",
-      "doc": "Log message"
-    },
-    {
-      "name": "service",
-      "type": "string",
-      "doc": "Service/logger name"
-    },
-    {
-      "name": "timestamp",
-      "type": "string",
-      "doc": "ISO8601 timestamp"
-    },
-    {
-      "name": "file",
-      "type": ["null", "string"],
-      "default": null,
-      "doc": "Source file path"
-    },
-    {
-      "name": "line",
-      "type": ["null", "int"],
-      "default": null,
-      "doc": "Line number"
-    },
-    {
-      "name": "function",
-      "type": ["null", "string"],
-      "default": null,
-      "doc": "Function name"
-    },
-    {
-      "name": "exception",
-      "type": ["null", "string"],
-      "default": null,
-      "doc": "Exception traceback if any"
-    },
-    {
-      "name": "extra",
-      "type": ["null", "string"],
-      "default": null,
-      "doc": "Extra JSON data"
-    },
-    {
-      "name": "schema_version",
-      "type": "int",
-      "default": 1,
-      "doc": "Schema version for evolution"
-    }
-  ]
-}
-```
-
----
-
-## Schema Compatibility Modes
-
-When using Schema Registry, you can enforce schema evolution rules:
-
-| Mode | Description | Use Case |
-|------|-------------|----------|
-| `BACKWARD` | New schema can read old data | Adding optional fields |
-| `BACKWARD_TRANSITIVE` | All previous schemas | Strict backward compatibility |
-| `FORWARD` | Old schema can read new data | Removing optional fields |
-| `FORWARD_TRANSITIVE` | All future schemas | Strict forward compatibility |
-| `FULL` | Both backward and forward | Most restrictive |
-| `FULL_TRANSITIVE` | All versions both ways | Maximum compatibility |
-| `NONE` | No compatibility checks | Development only |
-
-### Recommended: BACKWARD Compatibility
-
-```python
-log = Logifyx(
-    name="myapp",
-    kafka_servers="localhost:9092",
-    schema_registry_url="http://localhost:8081",
-    schema_compatibility="BACKWARD"  # New readers can read old data
-)
-```
-
-**BACKWARD compatibility allows:**
-- ✅ Adding new optional fields (with defaults)
-- ✅ Adding new fields with default values
-- ❌ Removing fields
-- ❌ Changing field types
-
----
-
-## Docker Setup
-
-### docker-compose.yml
+Save this as `docker-compose.yml` in your project:
 
 ```yaml
 version: '3.8'
@@ -241,203 +91,245 @@ services:
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:29092
 ```
 
-### Starting the Stack
-
 ```bash
-# Start Kafka and Schema Registry
-docker-compose up -d
+# Start both services
+docker compose up -d
 
-# Wait for services to be ready (about 30-60 seconds)
-docker-compose ps
+# Watch startup (Schema Registry takes ~30 seconds after Kafka is healthy)
+docker compose logs -f
 
-# Check Kafka is healthy
-docker-compose logs kafka | tail -20
+# Verify Kafka is up
+docker exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092
+
+# Verify Schema Registry is up
+curl http://localhost:8081/subjects
+# Expected: [] (empty list, no schemas yet)
+```
+
+### 3. Use Kafka logging
+
+```python
+from logifyx import Logifyx
+
+log = Logifyx(
+    name="myapp",
+    kafka_servers="localhost:9092",
+    kafka_topic="app-logs",
+    schema_registry_url="http://localhost:8081",  # optional but recommended
+    schema_compatibility="BACKWARD",
+)
+
+log.info("Application started")
+log.warning("High memory usage")
+log.error("Connection refused", exc_info=True)
 ```
 
 ---
 
-## Consuming Logs
+## Configuration
 
-### Python Consumer
+### Python
 
 ```python
-import asyncio
-import json
-from aiokafka import AIOKafkaConsumer
-
-async def consume_logs():
-    consumer = AIOKafkaConsumer(
-        'app-logs',
-        bootstrap_servers='localhost:9092',
-        auto_offset_reset='earliest',
-        group_id='log-viewer'
-    )
-    
-    await consumer.start()
-    print("Listening for logs...")
-    
-    try:
-        async for msg in consumer:
-            # Parse Avro or JSON
-            try:
-                log = json.loads(msg.value.decode('utf-8'))
-            except:
-                # Handle Avro (skip 5-byte header)
-                import fastavro, io
-                from logifyx.kafka import LOG_SCHEMA_V1
-                from fastavro.schema import parse_schema
-                
-                data = msg.value[5:] if msg.value[0] == 0 else msg.value
-                schema = parse_schema(LOG_SCHEMA_V1)
-                log = fastavro.schemaless_reader(io.BytesIO(data), schema)
-            
-            print(f"[{log['level']}] {log['service']}: {log['message']}")
-    finally:
-        await consumer.stop()
-
-asyncio.run(consume_logs())
+log = Logifyx(
+    name="myapp",
+    kafka_servers="localhost:9092",          # required to enable Kafka
+    kafka_topic="app-logs",                  # default: "logs"
+    schema_registry_url="http://localhost:8081",  # default: None (no registry)
+    schema_compatibility="BACKWARD",         # default: "BACKWARD"
+)
 ```
 
-### Kafka Console Consumer
+### .env
+
+```env
+LOG_KAFKA_SERVERS=localhost:9092
+LOG_KAFKA_TOPIC=app-logs
+LOG_SCHEMA_REGISTRY=http://localhost:8081
+LOG_SCHEMA_COMPATIBILITY=BACKWARD
+```
+
+### logifyx.yaml
+
+```yaml
+LOG_KAFKA_SERVERS: localhost:9092
+LOG_KAFKA_TOPIC: app-logs
+LOG_SCHEMA_REGISTRY: http://localhost:8081
+LOG_SCHEMA_COMPATIBILITY: BACKWARD
+```
+
+---
+
+## Avro Schema
+
+Each log record is serialized using this schema:
+
+```json
+{
+  "type": "record",
+  "name": "LogRecord",
+  "namespace": "com.logifyx.logs",
+  "fields": [
+    {"name": "level",          "type": "string",           "doc": "DEBUG / INFO / WARNING / ERROR / CRITICAL"},
+    {"name": "message",        "type": "string",           "doc": "The log message"},
+    {"name": "service",        "type": "string",           "doc": "Logger name"},
+    {"name": "timestamp",      "type": "string",           "doc": "ISO 8601 UTC timestamp"},
+    {"name": "file",           "type": ["null", "string"], "default": null, "doc": "Source file path"},
+    {"name": "line",           "type": ["null", "int"],    "default": null, "doc": "Line number"},
+    {"name": "function",       "type": ["null", "string"], "default": null, "doc": "Function name"},
+    {"name": "exception",      "type": ["null", "string"], "default": null, "doc": "Full exception traceback, if any"},
+    {"name": "extra",          "type": ["null", "string"], "default": null, "doc": "Any extra fields as a JSON string"},
+    {"name": "schema_version", "type": "int",              "default": 1,    "doc": "Schema version for evolution tracking"}
+  ]
+}
+```
+
+---
+
+## Schema Compatibility Modes
+
+Set via `schema_compatibility` / `LOG_SCHEMA_COMPATIBILITY`.
+
+| Mode | What it means | When to use |
+|------|--------------|-------------|
+| `BACKWARD` *(default)* | New schema can read data written by the **old** schema | Adding new optional fields with defaults |
+| `BACKWARD_TRANSITIVE` | New schema can read data written by **any previous** version | Strict long-term backward compat |
+| `FORWARD` | Old schema can read data written by the **new** schema | Removing optional fields |
+| `FORWARD_TRANSITIVE` | Any old schema can read data written by the new schema | Strict long-term forward compat |
+| `FULL` | Both BACKWARD and FORWARD | Most restrictive, safest for shared schemas |
+| `FULL_TRANSITIVE` | FULL across all historical versions | Maximum safety |
+| `NONE` | No checks | Development / prototyping only |
+
+**Rule of thumb:** Use `BACKWARD` unless you have a specific reason not to. It lets you add new optional fields to the schema without breaking any existing consumer that is already running.
+
+---
+
+## CLI Commands
+
+### Inspect the topic
 
 ```bash
-# View raw messages
-docker exec -it kafka kafka-console-consumer \
+# List all topics
+docker exec kafka kafka-topics \
+  --bootstrap-server localhost:9092 \
+  --list
+
+# Describe a topic (partitions, replication, etc.)
+docker exec kafka kafka-topics \
+  --bootstrap-server localhost:9092 \
+  --describe --topic app-logs
+
+# Create a topic manually (Logifyx creates it automatically if auto.create.topics.enable=true)
+docker exec kafka kafka-topics \
+  --bootstrap-server localhost:9092 \
+  --create --topic app-logs --partitions 3 --replication-factor 1
+```
+
+### Read messages from the topic
+
+```bash
+# Read all messages from the beginning (raw bytes — Avro will not be human-readable)
+docker exec kafka kafka-console-consumer \
   --bootstrap-server localhost:9092 \
   --topic app-logs \
   --from-beginning
+
+# Read only new messages
+docker exec kafka kafka-console-consumer \
+  --bootstrap-server localhost:9092 \
+  --topic app-logs
+```
+
+### Inspect Schema Registry
+
+```bash
+# List all registered subjects (one per topic-value by default)
+curl http://localhost:8081/subjects
+
+# Get all versions of a subject
+curl http://localhost:8081/subjects/app-logs-value/versions
+
+# Get the latest schema for a subject
+curl http://localhost:8081/subjects/app-logs-value/versions/latest
+
+# Check the compatibility mode set for a subject
+curl http://localhost:8081/config/app-logs-value
 ```
 
 ---
 
-## Production Considerations
+## Consuming Messages (Python)
 
-### Multiple Kafka Brokers
+```python
+import asyncio
+import io
+import json
+import fastavro
+from aiokafka import AIOKafkaConsumer
+from fastavro.schema import parse_schema
+from logifyx.kafka import LOG_SCHEMA_V1
+
+PARSED_SCHEMA = parse_schema(LOG_SCHEMA_V1)
+
+async def consume():
+    consumer = AIOKafkaConsumer(
+        "app-logs",
+        bootstrap_servers="localhost:9092",
+        auto_offset_reset="earliest",
+        group_id="log-viewer",
+    )
+    await consumer.start()
+    try:
+        async for msg in consumer:
+            raw = msg.value
+
+            # Confluent wire format: first byte is 0x00, next 4 bytes are schema ID
+            if raw[0] == 0:
+                raw = raw[5:]  # strip the 5-byte header before deserializing
+
+            record = fastavro.schemaless_reader(io.BytesIO(raw), PARSED_SCHEMA)
+            print(f"[{record['level']}] {record['service']} — {record['message']}")
+    finally:
+        await consumer.stop()
+
+asyncio.run(consume())
+```
+
+---
+
+## Production Setup
+
+### Multiple brokers
 
 ```python
 log = Logifyx(
     name="myapp",
     kafka_servers="kafka1:9092,kafka2:9092,kafka3:9092",
-    kafka_topic="app-logs"
+    kafka_topic="app-logs",
 )
 ```
 
-### Authentication (SASL/SSL)
+### Circuit breaker
 
-The Kafka handler supports additional kwargs passed to `aiokafka`:
-
-```python
-from logifyx import Logifyx
-
-# Note: For advanced Kafka config, configure the handler directly
-# or extend the KafkaHandler class
-```
-
-### Topic Partitioning
-
-Logs are partitioned by service name (key):
-
-```python
-# Messages with same service name go to same partition
-# This ensures ordering per service
-await producer.send_and_wait(
-    topic,
-    value=serialized_log,
-    key=record.name.encode('utf-8')  # Service name as key
-)
-```
-
-### Circuit Breaker
-
-The handler automatically disables after 5 consecutive failures:
-
-```python
-# Internal behavior:
-self.max_failures = 5
-self.failures = 0
-self.disabled = False
-
-# On each failure:
-self.failures += 1
-if self.failures >= self.max_failures:
-    self.disabled = True  # No more attempts
-```
+The handler disables itself after 5 consecutive send failures to avoid blocking or flooding a broken broker. Once disabled it stays disabled until the process restarts — check your broker health if you see logs stop flowing to Kafka.
 
 ---
 
 ## Troubleshooting
 
-### Connection Errors
-
-```
-KafkaConnectionError: Unable to bootstrap from localhost:9092
-```
-
-**Solutions:**
-1. Ensure Kafka is running: `docker-compose ps`
-2. Check network: `telnet localhost 9092`
-3. Verify `KAFKA_ADVERTISED_LISTENERS` in docker-compose
-
-### Schema Registry Errors
-
-```
-Schema registry connection failed
-```
-
-**Solutions:**
-1. Check Schema Registry is running: `curl http://localhost:8081`
-2. Verify Kafka is healthy first (Schema Registry depends on it)
-3. Wait 30-60 seconds after startup
-
-### Import Errors
-
-```
-ImportError: aiokafka is required for Kafka logging
-```
-
-**Solution:**
-```bash
-pip install aiokafka fastavro
-```
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `KafkaConnectionError` | Kafka not running or wrong address | `docker compose ps` — verify broker is healthy |
+| Schema Registry `500` on startup | Kafka not ready yet | Wait 30–60 s after Kafka starts, then retry |
+| Messages look like binary garbage in console consumer | Avro binary format | Use the Python consumer above to deserialize |
+| `ImportError: aiokafka` | Kafka extras not installed | `pip install aiokafka fastavro` |
+| Logs stop going to Kafka silently | Circuit breaker tripped (5 failures) | Check broker connectivity; restart the process |
 
 ---
 
-## Example: Full Demo
+## See also
 
-```python
-"""
-Kafka Logging Demo - examples/kafka_demo.py
-"""
-
-from logifyx import Logifyx
-
-log = Logifyx(
-    name="kafka-demo",
-    kafka_servers="localhost:9092",
-    kafka_topic="app-logs",
-    schema_registry_url="http://localhost:8081",
-    schema_compatibility="BACKWARD",
-    color=True
-)
-
-# Send test logs
-log.info("Application started")
-log.debug("Debug message")
-log.warning("Warning message")
-
-try:
-    1 / 0
-except Exception:
-    log.error("Exception occurred", exc_info=True)
-
-log.info("Application finished")
-print("✅ Logs sent to Kafka!")
-```
-
----
-
-## Next Steps
-
-- [Configuration Guide](configuration.md) - All configuration options
-- [Handlers Reference](handlers.md) - All output handlers
-- [CLI Reference](cli.md) - Command line tools
+- [Configuration Guide](configuration.md) — full `LOG_KAFKA_*` env var reference with defaults
+- [Handlers Reference](handlers.md) — how the Kafka handler fits alongside Console, File, and HTTP handlers
+- [CLI Reference](cli.md) — verify Kafka settings are resolved correctly before deploying
+- [README](../README.md) — quick-start examples
