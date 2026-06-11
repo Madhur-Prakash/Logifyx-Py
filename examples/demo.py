@@ -13,7 +13,7 @@ from logifyx import Logifyx, ContextLoggerAdapter, get_logify_logger, setup_logi
 # ========================================
 # Option 1: Direct Instantiation (Simple)
 # ========================================
-log = Logifyx(name="mysh8hdapp")
+log = Logifyx(name="mysh8hdapp", color=True, mode="dev")  # Create a logger instance
 
 log.info("Server started")
 log.critical("password=123456 token=abcd123")  # Masked automatically
