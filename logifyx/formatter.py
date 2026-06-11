@@ -2,26 +2,24 @@ import logging
 from pythonjsonlogger import jsonlogger
 import colorlog
 
+class LogifyxFormatter(logging.Formatter):
+    def format(self, record):
+        dt = self.formatTime(record, self.datefmt)
+        level = record.levelname.ljust(8)
+        location = f"{record.name}:{record.funcName}:{record.lineno}"
+        return f"{dt} | {level} | {location} - {record.getMessage()}"
+
+
 class CompactJsonFormatter(jsonlogger.JsonFormatter):
     def format(self, record):
-        # Build the exact string you want
-        log_line = (
-            f"{self.formatTime(record, self.datefmt)} - "
-            f"{record.name} - "
-            f"{record.levelname} - "
-            f"{record.getMessage()} - "
-            f"{record.pathname} - "
-            f"{record.filename} - "
-            f"{record.lineno} - "
-            f"{record.funcName}"
-        )
+        dt = self.formatTime(record, self.datefmt)
+        level = record.levelname.ljust(8)
+        location = f"{record.name}:{record.funcName}:{record.lineno}"
+        return f"{dt} | {level} | {location} - {record.getMessage()}"
 
-        # Return as JSON
-        return (log_line)
 
 def get_formatter(json_mode=False, color=False):
     datefmt = "%Y-%m-%d %H:%M:%S"
-    fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(pathname)s - %(filename)s - %(lineno)d - %(funcName)s"
 
     if json_mode:
         formatter = CompactJsonFormatter()
@@ -30,7 +28,7 @@ def get_formatter(json_mode=False, color=False):
 
     if color:
         return colorlog.ColoredFormatter(
-            "%(log_color)s" + fmt,
+            "%(asctime)s | %(log_color)s%(levelname)-8s%(reset)s | %(name)s:%(funcName)s:%(lineno)d - %(message)s",
             datefmt=datefmt,
             log_colors={
                 "DEBUG": "cyan",
@@ -41,4 +39,5 @@ def get_formatter(json_mode=False, color=False):
             }
         )
 
-    return logging.Formatter(fmt, datefmt=datefmt)
+    formatter = LogifyxFormatter(datefmt=datefmt)
+    return formatter
