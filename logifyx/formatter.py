@@ -1,3 +1,4 @@
+import json
 import logging
 from pythonjsonlogger import jsonlogger
 
@@ -44,10 +45,18 @@ class PlainLogifyxFormatter(logging.Formatter):
 
 
 class CompactJsonFormatter(jsonlogger.JsonFormatter):
-    """JSON-mode formatter: entire line colored by level."""
+    """JSON-mode formatter: single-line JSON object per record."""
 
     def format(self, record):
-        return _format_line(record, self.datefmt, color=True)
+        dt = logging.Formatter(datefmt=self.datefmt).formatTime(record, self.datefmt)
+        return json.dumps({
+            "timestamp": dt,
+            "level":     record.levelname,
+            "logger":    record.name,
+            "function":  record.funcName,
+            "line":      record.lineno,
+            "message":   record.getMessage(),
+        }, ensure_ascii=False)
 
 
 def get_formatter(json_mode=False, color=True):

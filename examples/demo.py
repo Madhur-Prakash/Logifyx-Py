@@ -13,7 +13,7 @@ from logifyx import Logifyx, ContextLoggerAdapter, get_logify_logger, setup_logi
 # ========================================
 # Option 1: Direct Instantiation (Simple)
 # ========================================
-log = Logifyx(name="mysh8hdapp", json_mode=False)  # Create a logger instance
+log = Logifyx(name="mysh8hdapp", json_mode=True)  # Create a logger instance
 
 log.info("Server started")
 log.critical("password=123456 token=abcd123")  # Masked automatically
@@ -34,7 +34,6 @@ loef()  # Still works with direct instance
 # Now use get_logify_logger anywhere in your app
 api_log = get_logify_logger(
     "apiss", 
-    mode="dev",
     file="api.log",
     log_dir="logs",
     color=True
