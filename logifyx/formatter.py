@@ -22,7 +22,7 @@ def _format_line(record, datefmt, color=True):
         colored_level    = f"{level_color}{level}{RESET}"
         colored_location = f"{BLUE}{record.name}{WHITE}:{BLUE}{record.funcName}:{record.lineno}{RESET}"
         colored_message  = f"{level_color}{record.getMessage()}{RESET}"
-        colored_dt = f"{level_color}{dt}{RESET}"
+        colored_dt = f"\033[32m{dt}{RESET}"
         return f"{colored_dt} | {colored_level} | {colored_location} - {colored_message}"
 
     location = f"{record.name}:{record.funcName}:{record.lineno}"
