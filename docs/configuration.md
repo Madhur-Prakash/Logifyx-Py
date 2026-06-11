@@ -52,7 +52,7 @@ Every setting has a corresponding env var with a `LOG_` prefix. All can be set i
 | `LOG_REMOTE` | `remote_url` | `None` | HTTP(S) endpoint URL. When set, every log record is POSTed as JSON to this URL in the background (non-blocking). |
 | `LOG_REMOTE_TIMEOUT` | `remote_timeout` | `5` | Seconds to wait for the HTTP server to respond before timing out. |
 | `LOG_REMOTE_RETRIES` | `max_remote_retries` | `3` | Number of consecutive failures allowed before the remote handler permanently disables itself (circuit breaker). |
-| `LOG_REMOTE_HEADERS` | `remote_headers` | `{"Content-Type": "application/json"}` | Custom HTTP headers sent with every request. In `.env` write as a JSON string: `LOG_REMOTE_HEADERS={"Authorization": "Bearer tok"}`. In `logifyx.yaml` write as a nested mapping. |
+| `LOG_REMOTE_HEADERS` | `remote_headers` | `{"Content-Type": "application/json"}` | Custom HTTP headers sent with every request. In shell or `.env` write as a JSON string: `LOG_REMOTE_HEADERS={"Authorization": "Bearer tok"}`. In `logifyx.yaml` write as a nested mapping (see YAML example below). |
 
 ### Kafka Streaming
 

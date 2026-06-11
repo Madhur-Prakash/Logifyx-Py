@@ -130,14 +130,14 @@ class Logifyx(logging.Logger):
     
     Usage:
         # Option 1: Direct instantiation
-        log = Logifyx("auth", mode="prod", remote_url="http://...")
-        
+        log = Logifyx("auth", remote_url="http://...")
+
         # Option 2: Global registration (recommended)
         import logging
         from logifyx import Logifyx, get_logify_logger
-        
+
         logging.setLoggerClass(Logifyx)
-        log = get_logify_logger("auth", mode="prod")
+        log = get_logify_logger("auth")
     """
     
 
@@ -217,7 +217,7 @@ class Logifyx(logging.Logger):
         json_mode: Optional[bool] = None,
         remote_url: Optional[str] = None,
         log_dir: Optional[str] = None,
-        mask: bool = True,
+        mask: Optional[bool] = None,
         color: Optional[bool] = None,
         backup_count: Optional[int] = None,
         max_bytes: Optional[int] = None,

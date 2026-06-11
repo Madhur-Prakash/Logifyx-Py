@@ -305,7 +305,7 @@ LOG_SCHEMA_COMPATIBILITY: BACKWARD
 
 | Option | Env Variable | YAML Key | Default | Description |
 |--------|--------------|----------|---------|-------------|
-| `file` | `LOG_FILE` | `LOG_FILE` | `"app.log"` | Log file name |
+| `file` | `LOG_FILE` | `LOG_FILE` | `<name>.log` | Log file name. Defaults to the logger name (e.g. `myapp.log`) if not set anywhere. |
 | `log_dir` | `LOG_DIR` | `LOG_DIR` | `"logs"` | Directory for log files |
 | `color` | `LOG_COLOR` | `LOG_COLOR` | `True` | Enable colored console output |
 | `json_mode` | `LOG_JSON` | `LOG_JSON` | `False` | Enable JSON formatted logs |
@@ -325,7 +325,7 @@ LOG_SCHEMA_COMPATIBILITY: BACKWARD
 | `remote_url` | `LOG_REMOTE` | `LOG_REMOTE` | `None` | HTTP endpoint URL |
 | `remote_timeout` | `LOG_REMOTE_TIMEOUT` | `LOG_REMOTE_TIMEOUT` | `5` | Request timeout (seconds) |
 | `max_remote_retries` | `LOG_REMOTE_RETRIES` | `LOG_REMOTE_RETRIES` | `3` | Max failures before disabling |
-| `remote_headers` | - | `LOG_REMOTE_HEADERS` | `{"Content-Type": "application/json"}` | Custom HTTP headers |
+| `remote_headers` | `LOG_REMOTE_HEADERS` | `LOG_REMOTE_HEADERS` | `{"Content-Type": "application/json"}` | Custom HTTP headers. In env/`.env`: JSON string. In YAML: nested mapping. |
 
 #### Kafka Settings
 
