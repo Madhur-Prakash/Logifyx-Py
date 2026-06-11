@@ -100,7 +100,6 @@ LOG_DIR: logs
 LOG_COLOR: True
 LOG_JSON: False
 LOG_MASK: True
-LOG_MODE: dev
 
 # File Rotation
 LOG_MAX_BYTES: 10000000
@@ -126,7 +125,6 @@ LOG_SCHEMA_COMPATIBILITY: BACKWARD
 |--------|--------------|----------|---------|-------------|
 | `name` | - | - | `"app"` | Logger name (identifies the service) |
 | `level` | `LOG_LEVEL` | `LOG_LEVEL` | `"INFO"` | Minimum log level |
-| `mode` | `LOG_MODE` | `LOG_MODE` | `"dev"` | Preset mode (dev/prod/simple) |
 
 ### Output Settings
 
@@ -171,58 +169,6 @@ LOG_SCHEMA_COMPATIBILITY: BACKWARD
 | `WARNING` | 30 | Something unexpected happened |
 | `ERROR` | 40 | A serious problem occurred |
 | `CRITICAL` | 50 | Program may not be able to continue |
-
----
-
-## Preset Modes
-
-Logifyx includes preset configurations for common use cases:
-
-### `dev` Mode (Development)
-
-```python
-{
-    "level": "DEBUG",
-    "color": True,
-    "json_mode": False
-}
-```
-
-Best for: Local development with verbose, colorful output.
-
-### `prod` Mode (Production)
-
-```python
-{
-    "level": "INFO",
-    "color": False,
-    "json_mode": True
-}
-```
-
-Best for: Production with structured JSON logs for aggregators like ELK, Splunk.
-
-### `simple` Mode
-
-```python
-{
-    "level": "INFO",
-    "color": False,
-    "json_mode": False
-}
-```
-
-Best for: Simple plain-text logging without colors.
-
-### Using Presets
-
-```python
-# Preset with overrides
-log = Logifyx(
-    name="myapp",
-    mode="prod",        # Use production preset
-)
-```
 
 ---
 

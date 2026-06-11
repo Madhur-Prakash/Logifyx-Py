@@ -6,7 +6,6 @@ import threading
 import queue
 import atexit
 from .config import load_config
-from .presets import MODES
 from .formatter import get_formatter
 from .filters import MaskFilter
 from .handler import get_handlers
@@ -149,7 +148,6 @@ class Logifyx(logging.Logger):
         config_dir = _sentinel,
         env_file = _sentinel,
         yaml_file = _sentinel,
-        mode = _sentinel,
         json_mode = _sentinel,
         remote_url = _sentinel,
         log_dir = _sentinel,
@@ -184,7 +182,6 @@ class Logifyx(logging.Logger):
             "config_dir": config_dir,
             "env_file": env_file,
             "yaml_file": yaml_file,
-            "mode": mode,
             "json_mode": json_mode,
             "remote_url": remote_url,
             "log_dir": log_dir,
@@ -217,7 +214,6 @@ class Logifyx(logging.Logger):
         config_dir: Optional[str] = None,
         env_file: Optional[str] = None,
         yaml_file: Optional[str] = None,
-        mode: Optional[str] = None,
         json_mode: Optional[bool] = None,
         remote_url: Optional[str] = None,
         log_dir: Optional[str] = None,
@@ -245,11 +241,6 @@ class Logifyx(logging.Logger):
             
         # Load base config
         self.config = load_config(config_dir=config_dir, env_file=env_file, yaml_file=yaml_file)
-
-        # Apply preset
-        if mode and mode in MODES:
-            self.config.update(MODES[mode])
-            self.config["mode"] = mode
 
         overrides = {
             "log_dir": log_dir,
@@ -288,7 +279,6 @@ class Logifyx(logging.Logger):
         self.setLevel(final_level)
         
         self.propagate = False
-        logging.raiseExceptions = self.config.get("mode") != "prod"
 
         self._build()
         
@@ -370,7 +360,7 @@ class ContextLoggerAdapter(logging.LoggerAdapter):
     Adapter for injecting structured context (request_id, user_id, etc.) into logs.
     
     Usage:
-        log = Logifyx("auth", mode="prod")
+        log = Logifyx("auth")
         request_log = ContextLoggerAdapter(log, {"request_id": "abc123", "user_id": 42})
         request_log.info("Login successful")
         
@@ -395,7 +385,6 @@ def get_logify_logger(
     config_dir = _sentinel,
     env_file = _sentinel,
     yaml_file = _sentinel,
-        mode = _sentinel,
         json_mode = _sentinel,
         remote_url = _sentinel,
         log_dir = _sentinel,
@@ -422,7 +411,7 @@ def get_logify_logger(
         logging.setLoggerClass(Logifyx)
         
         # Then get loggers
-        log = get_logify_logger("auth", mode="prod", remote_url="http://...")
+        log = get_logify_logger("auth", remote_url="http://...")
     
     Args:
         name: Logger name (singleton per name)
@@ -435,7 +424,6 @@ def get_logify_logger(
         "config_dir": config_dir,
         "env_file": env_file,
         "yaml_file": yaml_file,
-        "mode": mode,
         "json_mode": json_mode,
         "remote_url": remote_url,
         "log_dir": log_dir,

@@ -64,7 +64,6 @@ def load_config(
     config["backup_count"] = int(_resolve_value("LOG_BACKUP_COUNT", 5))
     config["log_dir"] = _resolve_value("LOG_DIR", "logs")
     config["file"] = _resolve_value("LOG_FILE", "app.log")
-    config["mode"] = _resolve_value("LOG_MODE", "dev")
     config["json_mode"] = _as_bool(_resolve_value("LOG_JSON", False), False)
     config["mask"] = _as_bool(_resolve_value("LOG_MASK", True), True)
     config["remote_url"] = _resolve_value("LOG_REMOTE", None)
