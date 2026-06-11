@@ -3,6 +3,7 @@
 # Logifyx
 
 [![PyPI version](https://img.shields.io/pypi/v/logifyx.svg?logo=pypi&label=logifyx%20on%20PyPI)](https://pypi.org/project/logifyx/)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/logifyx?period=total&units=INTERNATIONAL_SYSTEM&left_color=GREY&right_color=BLUE&left_text=downloads)](https://pepy.tech/projects/logifyx)
 
 ![Python](https://img.shields.io/badge/Python-3.8+-blue?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green)
