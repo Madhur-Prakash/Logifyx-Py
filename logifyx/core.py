@@ -127,16 +127,15 @@ def shutdown() -> None:
 class Logifyx(logging.Logger):
     """
     Production-grade logging class extending logging.Logger.
-    
+
     Usage:
-        # Option 1: Direct instantiation
+        ## Option 1: Direct instantiation
         log = Logifyx("auth", remote_url="http://...")
 
-        # Option 2: Global registration (recommended)
-        import logging
-        from logifyx import Logifyx, get_logify_logger
+        ## Option 2: Via setup_logify() + get_logify_logger() (recommended)
+        from logifyx import setup_logify, get_logify_logger
 
-        logging.setLoggerClass(Logifyx)
+        setup_logify()  # once at app startup
         log = get_logify_logger("auth")
     """
     
@@ -232,8 +231,11 @@ class Logifyx(logging.Logger):
         level: Optional[Union[int, str]] = None
     ) -> "Logifyx":
         """
-        Configure the logger with all options.
-        Called automatically on direct instantiation, or manually via get_logify_logger().
+        Configure or reconfigure the logger with the given options.
+
+        Merges provided kwargs over values loaded from config files/env.
+        Called automatically during __init__; only call again after clearing
+        handlers (e.g. inside reload()).
         """
         # Skip if already configured (handlers exist)
         if self.handlers:
@@ -382,9 +384,9 @@ class ContextLoggerAdapter(logging.LoggerAdapter):
 
 def get_logify_logger(
         name: str,
-    config_dir = _sentinel,
-    env_file = _sentinel,
-    yaml_file = _sentinel,
+        config_dir = _sentinel,
+        env_file = _sentinel,
+        yaml_file = _sentinel,
         json_mode = _sentinel,
         remote_url = _sentinel,
         log_dir = _sentinel,
@@ -402,23 +404,26 @@ def get_logify_logger(
         remote_headers = _sentinel) -> Logifyx:
     """
     Get or create a Logifyx logger instance.
-    
-    This ensures singleton-per-name behavior and proper configuration.
-    
+
+    Ensures singleton-per-name behavior via the standard logging registry.
+    Requires setup_logify() to have been called at application startup.
+
     Usage:
-        # First, set Logifyx as the logger class (once at app startup)
-        import logging
-        logging.setLoggerClass(Logifyx)
-        
-        # Then get loggers
+        from logifyx import setup_logify, get_logify_logger
+
+        setup_logify()  # once at app startup
         log = get_logify_logger("auth", remote_url="http://...")
-    
+
     Args:
-        name: Logger name (singleton per name)
-        **kwargs: Configuration options passed to Logifyx.configure()
-    
+        name: Logger name (singleton per name).
+        **kwargs: Configuration options forwarded to Logifyx.configure()
+                  (e.g. remote_url, log_dir, mask, color, json_mode, ...).
+
     Returns:
-        Configured Logifyx instance
+        Configured Logifyx instance.
+
+    Raises:
+        TypeError: If setup_logify() was not called before this function.
     """
     func_params = {
         "config_dir": config_dir,
@@ -446,7 +451,7 @@ def get_logify_logger(
     if not isinstance(logger, Logifyx):
         raise TypeError(
             "LoggerClass not set to Logifyx. "
-            "Call logging.setLoggerClass(Logifyx) at app startup."
+            "Call setup_logify() at app startup before get_logify_logger()."
         )
     
     # Filter out sentinel values - keep only explicitly provided params
@@ -464,13 +469,15 @@ def get_logify_logger(
 def setup_logify() -> None:
     """
     Register Logifyx as the global logger class.
-    Call this once at application startup.
-    
+
+    Must be called once at application startup, before any get_logify_logger()
+    calls. Equivalent to logging.setLoggerClass(Logifyx).
+
     Usage:
         from logifyx import setup_logify, get_logify_logger
-        
+
         setup_logify()
-        log = get_logify_logger("myapp", mode="prod")
+        log = get_logify_logger("myapp")
     """
     logging.setLoggerClass(Logifyx)
 
