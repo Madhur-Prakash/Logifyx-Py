@@ -22,4 +22,5 @@ class MaskFilter(logging.Filter):
             msg = re.sub(pattern, "****", msg)
 
         record.msg = msg
+        record.args = None  # prevent double %-substitution in the formatter
         return True

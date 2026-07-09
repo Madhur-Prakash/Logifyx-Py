@@ -5,6 +5,13 @@ All notable changes to Logifyx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.1.0...v1.1.1) - 2026-07-09
+
+### Fixed
+
+- **`get_logify_logger()` silently dropped kwargs** — when called with config overrides such as `log_dir=` or `file=`, the logger was always created with defaults instead. Root cause: `logging.getLogger(name)` triggers `Logifyx.__init__(name)` with no extra args (the stdlib manager has no way to forward them), so `configure()` ran with defaults and built handlers before the caller's kwargs were ever seen. Fixed by pre-registering kwargs in a module-level dict (`_init_kwargs`) before `logging.getLogger()` is called; `__init__` pops and merges them before `configure()` runs.
+- **`MaskFilter` crashed on `%`-style log calls** — any call using positional format args, e.g. `log.info("pid=%d", 1234)`, raised `TypeError: not all arguments converted during string formatting` when masking was enabled (the default). Root cause: `filter()` called `record.getMessage()` (which consumed `record.args` to produce the final string) and wrote the result back to `record.msg`, but left `record.args` untouched. The formatter's subsequent `getMessage()` call attempted `record.msg % record.args` again — the string had no `%` placeholders left, so `%` raised. Fixed by setting `record.args = None` immediately after rewriting `record.msg`.
+
 ## [1.1.0](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.0.6...v1.1.0) - 2026-06-11
 
 ### Changed

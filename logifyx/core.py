@@ -36,6 +36,11 @@ _queue_listener: Optional[QueueListener] = None
 _listener_lock = threading.Lock()
 _atexit_registered = False
 
+# Holds kwargs from get_logify_logger() so __init__ can pick them up.
+# logging.getLogger() triggers Logifyx(name) with no extra args; this dict
+# bridges the gap so user-supplied kwargs reach configure() on first creation.
+_init_kwargs: Dict[str, dict] = {}
+
 
 def _default_log_file(name: str) -> str:
     base_name = (name or "app").strip() or "app"
@@ -198,6 +203,14 @@ class Logifyx(logging.Logger):
             "remote_headers": remote_headers
         }
         
+        # If we were constructed by logging.getLogger() (which only passes `name`),
+        # get_logify_logger() will have pre-registered the caller's kwargs here
+        # so they aren't lost.  Pop atomically so a second call for the same name
+        # (which hits the registry cache and never reaches __init__) leaves nothing.
+        pre = _init_kwargs.pop(name, None)
+        if pre:
+            self._init_params.update(pre)
+
         # Filter out sentinel values - keep only explicitly provided params
         provided = {k: v for k, v in self._init_params.items() if v is not _sentinel}
 
@@ -446,23 +459,28 @@ def get_logify_logger(
         "remote_headers": remote_headers
     }
 
-    logger = logging.getLogger(name)
-    
+    # Filter out sentinel values before registering
+    provided = {k: v for k, v in func_params.items() if v is not _sentinel}
+
+    # Pre-register kwargs BEFORE logging.getLogger() fires Logifyx.__init__.
+    # The logging manager calls __init__(name) with no extra args, so kwargs
+    # passed here would otherwise be silently discarded.
+    if provided:
+        _init_kwargs[name] = provided
+
+    try:
+        logger = logging.getLogger(name)
+    finally:
+        # Always clean up: __init__ pops on new loggers; we clean up here
+        # for existing loggers (registry hit, __init__ never called) or errors.
+        _init_kwargs.pop(name, None)
+
     if not isinstance(logger, Logifyx):
         raise TypeError(
             "LoggerClass not set to Logifyx. "
             "Call setup_logify() at app startup before get_logify_logger()."
         )
-    
-    # Filter out sentinel values - keep only explicitly provided params
-    provided = {k: v for k, v in func_params.items() if v is not _sentinel}
-    
-    # Configure only if not already configured (no handlers yet)
-    if not logger.handlers and provided:
-        logger.configure(**provided)
-    elif not logger.handlers:
-        logger.configure()
-    
+
     return logger
 
 
