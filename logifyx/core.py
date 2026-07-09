@@ -87,22 +87,27 @@ def _stop_queue_listener() -> None:
 
 def flush(timeout: float = 5.0) -> bool:
     """
-    Wait for queued logs to be sent without stopping the listener.
-    
-    Use this in servers to ensure logs are delivered during shutdown
-    without blocking normal operation. Non-blocking if queue empties quickly.
-    
-    Args:
-        timeout: Maximum seconds to wait for queue to drain (default 5.0)
-        
-    Returns:
-        True if queue drained within timeout, False otherwise
-        
-    Usage:
+    Block until the async log queue is empty, then return.
+
+    Remote HTTP and Kafka handlers are async — log calls return instantly and
+    the actual network send happens in a background thread. Call flush() before
+    your process exits (or before a graceful shutdown) to ensure those buffered
+    records are delivered.
+
+    Does not stop the background listener, so logging continues normally
+    after flush() returns. For a full teardown use shutdown() instead.
+
         from logifyx import flush
-        
-        # In request handler or periodic cleanup
-        flush(timeout=2.0)
+
+        flush()           # wait up to 5 s (default)
+        flush(timeout=2)  # wait up to 2 s
+
+    Args:
+        timeout: Maximum seconds to wait for the queue to drain. Default: 5.0.
+
+    Returns:
+        True  — queue emptied within the timeout.
+        False — timeout expired with records still pending.
     """
     start = time.time()
     while not _log_queue.empty():
@@ -114,34 +119,91 @@ def flush(timeout: float = 5.0) -> bool:
 
 def shutdown() -> None:
     """
-    Explicitly flush and stop all async logging handlers.
-    
-    Call this before your application exits to ensure all queued remote/kafka
-    logs are delivered. This is automatically registered with atexit, but calling
-    it explicitly ensures all logs are sent before any cleanup code runs.
-    
-    Usage:
+    Flush all pending async log records and stop the background listener.
+
+    Remote HTTP and Kafka records are delivered by a background thread. shutdown()
+    waits for that thread to finish sending everything in the queue, then tears it
+    down. After this call, any new remote/Kafka log records are dropped.
+
+    shutdown() is registered with atexit automatically, so it runs on normal
+    process exit. Call it explicitly only when you need delivery to complete
+    before your own cleanup code runs (e.g. before closing a database connection
+    that a log handler may reference).
+
         from logifyx import shutdown
-        
-        # At end of your application
-        shutdown()
+
+        try:
+            run_app()
+        finally:
+            shutdown()   # guarantee delivery before process teardown
     """
     _flush_and_stop_listener()
 
 
 class Logifyx(logging.Logger):
     """
-    Production-grade logging class extending logging.Logger.
+    Drop-in replacement for logging.Logger with console, file, remote HTTP,
+    and Kafka output — plus sensitive-data masking and JSON mode.
 
-    Usage:
-        ## Option 1: Direct instantiation
-        log = Logifyx("auth", remote_url="http://...")
+    Two ways to create a logger:
 
-        ## Option 2: Via setup_logify() + get_logify_logger() (recommended)
+    Option 1 — direct instantiation (simplest, no setup required):
+
+        from logifyx import Logifyx
+
+        log = Logifyx("auth", log_dir="logs", color=True)
+        log.info("Server started")
+
+    Option 2 — global registration via setup_logify() (recommended for apps
+    with multiple modules, because every call to get_logify_logger("auth")
+    anywhere in the process returns the same already-configured instance):
+
+        # Once, at the top of main.py / app.py / wsgi.py:
         from logifyx import setup_logify, get_logify_logger
+        setup_logify()
 
-        setup_logify()  # once at app startup
-        log = get_logify_logger("auth")
+        # Anywhere in your codebase:
+        log = get_logify_logger("auth", log_dir="logs", color=True)
+        log.info("Server started")
+
+    Configuration priority (highest → lowest):
+        kwargs passed here  >  environment variables  >  logifyx.yaml  >  built-in defaults
+
+    Omitting a kwarg is not the same as passing None — omitting means "fall through
+    to env/yaml/defaults". Passing an explicit value always wins.
+
+    Args:
+        name:                 Logger name. Use dot notation for hierarchy ("app.auth").
+        level:                Minimum level to emit. Accepts "DEBUG", "INFO", "WARNING",
+                              "ERROR", "CRITICAL" (case-insensitive) or a logging int.
+                              Default: "INFO".
+        log_dir:              Directory for rotating log files. Default: "logs".
+        file:                 Log filename inside log_dir. Default: "<name>.log".
+        max_bytes:            Rotate the file when it reaches this many bytes.
+                              Default: 10_000_000 (10 MB).
+        backup_count:         Number of rotated backup files to keep. Default: 5.
+        color:                Colorize console output by level. Default: True.
+        json_mode:            Emit each line as a JSON object instead of plain text.
+                              Automatically disables color. Default: False.
+        mask:                 Redact passwords, tokens, and secrets in all output.
+                              Default: True.
+        remote_url:           HTTP endpoint to POST log records to. Delivery is async
+                              and non-blocking (queue-based). Default: None (disabled).
+        remote_timeout:       Seconds before an HTTP send times out. Default: 5.
+        max_remote_retries:   Consecutive failures before the remote handler disables
+                              itself to avoid blocking. Default: 3.
+        remote_headers:       Extra HTTP headers as a dict, e.g.
+                              {"Authorization": "Bearer <token>"}. Default: None.
+        kafka_servers:        Kafka bootstrap server(s), e.g. "localhost:9092" or
+                              "k1:9092,k2:9092". Default: None (disabled).
+        kafka_topic:          Kafka topic to produce log records to. Default: "logs".
+        schema_registry_url:  Confluent Schema Registry URL for Avro serialization.
+                              Default: None (JSON over Kafka instead).
+        schema_compatibility: Schema compatibility mode — BACKWARD, FORWARD, FULL,
+                              or NONE. Default: "BACKWARD".
+        config_dir:           Directory to search for logifyx.yaml. Default: project root.
+        env_file:             Path to a .env file to load. Default: ".env".
+        yaml_file:            Explicit path to a YAML config file, overrides auto-discovery.
     """
     
 
@@ -244,11 +306,26 @@ class Logifyx(logging.Logger):
         level: Optional[Union[int, str]] = None
     ) -> "Logifyx":
         """
-        Configure or reconfigure the logger with the given options.
+        Apply configuration options and build handlers.
 
-        Merges provided kwargs over values loaded from config files/env.
-        Called automatically during __init__; only call again after clearing
-        handlers (e.g. inside reload()).
+        You do not need to call this directly — __init__ calls it automatically.
+        It is only called again by reload() / reload_from_file() after those
+        methods clear the existing handlers.
+
+        Config priority (highest wins):
+            kwargs passed here  >  environment / .env  >  logifyx.yaml  >  built-in defaults
+
+        Passing None for a kwarg means "do not override this setting" — the value
+        from env/yaml/defaults is used instead. This differs from passing False or
+        an empty string, which are treated as explicit values.
+
+        Special behaviour:
+            - If json_mode=True and color=True are both active, json_mode wins and
+              color is silently disabled (colorized JSON is not supported).
+            - If file is not set anywhere, the log filename defaults to "<name>.log".
+
+        Returns:
+            self — allows method chaining, e.g. Logifyx("x").configure(color=False).
         """
         # Skip if already configured (handlers exist)
         if self.handlers:
@@ -339,7 +416,17 @@ class Logifyx(logging.Logger):
             _start_queue_listener(async_handlers)
 
     def reload(self) -> None:
-        """Reload logger configuration and handlers."""
+        """
+        Tear down all handlers and reconfigure using the kwargs from __init__.
+
+        Use this to pick up updated environment variables or a changed logifyx.yaml
+        without restarting the process. The kwargs you originally passed at creation
+        are re-applied on top of the freshly loaded config.
+
+            log = Logifyx("auth", log_dir="logs")
+            # edit logifyx.yaml or change an env var at runtime ...
+            log.reload()   # drops old handlers, rebuilds with original kwargs + new config
+        """
         with self._reload_lock:
             # Stop queue listener
             _stop_queue_listener()
@@ -354,7 +441,18 @@ class Logifyx(logging.Logger):
             self.configure(**provided)
 
     def reload_from_file(self) -> None:
-        """Reload configuration from logifyx.yaml file."""
+        """
+        Tear down all handlers and reconfigure from logifyx.yaml only.
+
+        Unlike reload(), this does NOT re-apply kwargs passed at creation —
+        the fresh config comes entirely from logifyx.yaml and environment variables.
+        Use this when you want the config file to be the sole source of truth
+        after a config file update, discarding any code-level overrides.
+
+            log = Logifyx("auth", log_dir="custom_logs")  # kwarg is NOT re-applied
+            # edit logifyx.yaml ...
+            log.reload_from_file()                        # picks up YAML, drops kwarg
+        """
         with self._reload_lock:
             # Stop queue listener
             _stop_queue_listener()
@@ -372,15 +470,29 @@ class Logifyx(logging.Logger):
 
 class ContextLoggerAdapter(logging.LoggerAdapter):
     """
-    Adapter for injecting structured context (request_id, user_id, etc.) into logs.
-    
-    Usage:
+    Wraps a Logifyx logger to prepend structured key=value context to every message.
+
+    Pass a dict of context fields at construction time. Every log call through
+    the adapter automatically includes those fields — you do not need to repeat
+    them on each call.
+
+    Setup: no extra registration needed beyond having a Logifyx logger.
+
+        from logifyx import Logifyx, ContextLoggerAdapter
+
         log = Logifyx("auth")
         request_log = ContextLoggerAdapter(log, {"request_id": "abc123", "user_id": 42})
         request_log.info("Login successful")
-        
-    Output:
+
+    Text mode output:
         request_id=abc123 user_id=42 | Login successful
+
+    JSON mode output (when log was created with json_mode=True):
+        {"level": "INFO", ..., "request_id": "abc123", "user_id": 42, "message": "Login successful"}
+
+    Args:
+        logger: A configured Logifyx instance.
+        extra:  Dict of context fields to inject into every log record.
     """
 
     def process(self, msg: str, kwargs: Dict[str, Any]) -> tuple:
@@ -416,27 +528,56 @@ def get_logify_logger(
         max_remote_retries = _sentinel,
         remote_headers = _sentinel) -> Logifyx:
     """
-    Get or create a Logifyx logger instance.
+    Get or create a Logifyx logger, with a guaranteed singleton per name.
 
-    Ensures singleton-per-name behavior via the standard logging registry.
-    Requires setup_logify() to have been called at application startup.
+    REQUIRED SETUP — call setup_logify() once before using this function,
+    at the very top of your entry point (main.py, app.py, wsgi.py, etc.):
 
-    Usage:
-        from logifyx import setup_logify, get_logify_logger
+        from logifyx import setup_logify
+        setup_logify()
 
-        setup_logify()  # once at app startup
-        log = get_logify_logger("auth", remote_url="http://...")
+    Then call get_logify_logger() anywhere in your codebase. The first call
+    for a given name creates and configures the logger; every subsequent call
+    with the same name returns the same already-configured instance — kwargs
+    passed on repeat calls are ignored.
+
+        from logifyx import get_logify_logger
+
+        log = get_logify_logger("auth", log_dir="logs", mask=True)
+        log.info("Server started")
+
+    Why use this instead of Logifyx("name") directly?
+        Python's logging.getLogger() keeps a process-wide registry so that
+        logging.getLogger("auth") anywhere in the codebase returns the same
+        object. get_logify_logger() goes through that same registry, giving you
+        the singleton guarantee while still accepting Logifyx-specific kwargs.
 
     Args:
-        name: Logger name (singleton per name).
-        **kwargs: Configuration options forwarded to Logifyx.configure()
-                  (e.g. remote_url, log_dir, mask, color, json_mode, ...).
+        name:                 Logger name. Same name always returns the same instance.
+        log_dir:              Directory for rotating log files. Default: "logs".
+        file:                 Log filename inside log_dir. Default: "<name>.log".
+        max_bytes:            Rotate the file at this size in bytes. Default: 10_000_000.
+        backup_count:         Number of rotated backup files to keep. Default: 5.
+        color:                Colorize console output by level. Default: True.
+        json_mode:            Emit each line as a JSON object. Disables color. Default: False.
+        mask:                 Redact passwords, tokens, and secrets. Default: True.
+        remote_url:           HTTP endpoint to POST log records to (async). Default: None.
+        remote_timeout:       HTTP send timeout in seconds. Default: 5.
+        max_remote_retries:   Failures before the remote handler self-disables. Default: 3.
+        remote_headers:       Extra HTTP headers, e.g. {"Authorization": "Bearer <tok>"}.
+        kafka_servers:        Kafka bootstrap server(s), e.g. "localhost:9092".
+        kafka_topic:          Kafka topic to produce to. Default: "logs".
+        schema_registry_url:  Confluent Schema Registry URL for Avro. Default: None.
+        schema_compatibility: Schema compatibility mode. Default: "BACKWARD".
+        config_dir:           Directory containing logifyx.yaml. Default: project root.
+        env_file:             Path to a .env file to load. Default: ".env".
+        yaml_file:            Explicit path to a YAML config file.
 
     Returns:
-        Configured Logifyx instance.
+        Configured Logifyx instance (same object on repeated calls with the same name).
 
     Raises:
-        TypeError: If setup_logify() was not called before this function.
+        TypeError: setup_logify() was not called before this function.
     """
     func_params = {
         "config_dir": config_dir,
@@ -486,16 +627,25 @@ def get_logify_logger(
 
 def setup_logify() -> None:
     """
-    Register Logifyx as the global logger class.
+    Register Logifyx as the global logger class. Call once at app startup.
 
-    Must be called once at application startup, before any get_logify_logger()
-    calls. Equivalent to logging.setLoggerClass(Logifyx).
+    This must be the first Logifyx call in your process — place it at the top
+    of your entry point before any get_logify_logger() calls:
 
-    Usage:
+        # main.py / app.py / wsgi.py
         from logifyx import setup_logify, get_logify_logger
 
-        setup_logify()
-        log = get_logify_logger("myapp")
+        setup_logify()                        # register once
+        log = get_logify_logger("myapp")      # now safe to use anywhere
+
+    What it does: calls logging.setLoggerClass(Logifyx) so that Python's
+    logging manager constructs a Logifyx instance (instead of a plain
+    logging.Logger) the first time logging.getLogger(name) is called for
+    any new name.
+
+    Skipping this causes get_logify_logger() to raise TypeError.
+    It has no effect on loggers created with Logifyx("name") directly —
+    direct instantiation does not go through the logging registry.
     """
     logging.setLoggerClass(Logifyx)
 

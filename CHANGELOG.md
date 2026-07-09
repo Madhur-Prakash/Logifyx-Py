@@ -9,8 +9,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **`get_logify_logger()` silently dropped kwargs** — when called with config overrides such as `log_dir=` or `file=`, the logger was always created with defaults instead. Root cause: `logging.getLogger(name)` triggers `Logifyx.__init__(name)` with no extra args (the stdlib manager has no way to forward them), so `configure()` ran with defaults and built handlers before the caller's kwargs were ever seen. Fixed by pre-registering kwargs in a module-level dict (`_init_kwargs`) before `logging.getLogger()` is called; `__init__` pops and merges them before `configure()` runs.
-- **`MaskFilter` crashed on `%`-style log calls** — any call using positional format args, e.g. `log.info("pid=%d", 1234)`, raised `TypeError: not all arguments converted during string formatting` when masking was enabled (the default). Root cause: `filter()` called `record.getMessage()` (which consumed `record.args` to produce the final string) and wrote the result back to `record.msg`, but left `record.args` untouched. The formatter's subsequent `getMessage()` call attempted `record.msg % record.args` again — the string had no `%` placeholders left, so `%` raised. Fixed by setting `record.args = None` immediately after rewriting `record.msg`.
+#### `get_logify_logger()` silently dropped kwargs ([`core.py`](logifyx/core.py))
+
+**Symptom:** Calling `get_logify_logger("auth", log_dir="/custom", file="auth.log")` always
+wrote logs to the default location (`./logs/auth.log`) regardless of what you passed.
+Config kwargs were accepted without error but had no effect.
+
+**Root cause:** Python's logging registry constructs the logger class by calling
+`Logifyx(name)` with **only the name** — the stdlib manager has no mechanism to
+forward extra parameters. This meant the sequence inside `get_logify_logger` was:
+
+1. `logging.getLogger("auth")` fires. The registry sees the name for the first time and
+   calls `Logifyx("auth")` — no kwargs, all parameters are sentinels.
+2. Inside `__init__`, `provided` is empty, so `configure()` runs with pure defaults and
+   builds handlers immediately.
+3. Control returns to `get_logify_logger`. It checks `if not logger.handlers` — but
+   handlers already exist from step 2. Both `configure()` and `__init__` contain an
+   early-exit guard (`if self.handlers: return`) to prevent double-configuration.
+   The user's kwargs hit that guard and are silently discarded.
+
+The kwargs arrived one step too late. By the time `get_logify_logger` could apply them,
+the logger was already fully built and locked.
+
+**Fix:** A module-level dict `_init_kwargs` acts as a one-shot hand-off. Before calling
+`logging.getLogger()`, `get_logify_logger` stores the caller's kwargs in that dict.
+`__init__` pops them and merges them into `_init_params` before `configure()` runs,
+so the user's values win. A `try/finally` block ensures the dict is always cleaned up —
+for existing loggers the registry returns a cached instance without calling `__init__`,
+so the entry is removed in the `finally` rather than inside `__init__`.
+
+---
+
+#### `MaskFilter` crashed on `%`-style log calls ([`filters.py`](logifyx/filters.py))
+
+**Symptom:** Any standard `%`-style log call with positional args — e.g.
+`log.info("Server started on port %d", 8080)` — raised
+`TypeError: not all arguments converted during string formatting` whenever masking
+was enabled (`mask=True`, which is the default). The exception propagated to the
+call site rather than being swallowed quietly, crashing the caller.
+
+**Root cause:** Python's logging stores the message template and its arguments
+separately on the `LogRecord` (`record.msg` and `record.args`) and only combines
+them when something calls `record.getMessage()`. `MaskFilter.filter()` called
+`getMessage()` to get the final formatted string, masked it, and wrote it back to
+`record.msg` — but never cleared `record.args`:
+
+```python
+# before fix
+msg = record.getMessage()   # "pid=%d" % (1234,) → "pid=1234"
+record.msg = msg            # plain string, no % placeholders remaining
+# record.args = (1234,)     # ← never cleared
+```
+
+Later, the formatter called `record.getMessage()` a second time to build the log
+line. `record.msg` was now a plain string with zero `%` placeholders, but
+`record.args` was still `(1234,)`. Python's `%` operator raised because there were
+leftover arguments with nothing to consume them.
+
+The crash was not a quiet logging error: `Handler.handle()` calls `self.filter()`
+before the `try/except` that wraps `emit()`, so the `TypeError` propagated all the
+way back to the original `log.info(...)` call site.
+
+**Fix:** Clear `record.args` immediately after rewriting `record.msg`:
+
+```python
+# after fix
+record.msg = msg
+record.args = None   # no second substitution attempted by the formatter
+```
+
+With `record.args = None`, `getMessage()` short-circuits to returning `record.msg`
+directly — no `%` operation, no crash. Every handler sees the already-masked string.
 
 ## [1.1.0](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.0.6...v1.1.0) - 2026-06-11
 
