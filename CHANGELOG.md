@@ -5,6 +5,37 @@ All notable changes to Logifyx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.1.1...v1.1.2) - 2026-07-17
+
+### Added
+
+#### Strict argument validation in `configure()` ([`core.py`](logifyx/core.py))
+
+Every argument passed to `Logifyx()` or `get_logify_logger()` is now strictly validated before any configuration is applied. Previously, wrong types were silently accepted and either ignored or caused cryptic errors deep inside handlers.
+
+- **str params** (`config_dir`, `env_file`, `yaml_file`, `remote_url`, `log_dir`, `file`, `kafka_topic`, `schema_registry_url`) — raises `TypeError` if not a `str`.
+- **bool params** (`color`, `mask`, `json_mode`) — raises `TypeError` if not exactly `True` or `False`. Strings like `"true"`, integers like `1`, and other truthy values are rejected.
+- **int params** with range enforcement:
+  - `max_bytes` — must be `int`, `>= 1`
+  - `backup_count` — must be `int`, `>= 0`
+  - `remote_timeout` — must be `int`, `>= 1`
+  - `max_remote_retries` — must be `int`, `>= 0`
+  - `bool` is rejected for all int params (`isinstance(True, int)` is `True` in Python, so this is checked explicitly)
+- **`kafka_servers`** — must be a `str` or `list[str]`. List entries are individually checked.
+- **`remote_headers`** — must be `dict[str, str]`. Both keys and values are checked.
+- **`schema_compatibility`** — must be one of `BACKWARD`, `BACKWARD_TRANSITIVE`, `FORWARD`, `FORWARD_TRANSITIVE`, `FULL`, `FULL_TRANSITIVE`, `NONE`. Raises `ValueError` for anything else.
+- **`level`** — must be a valid level name (`str`) or a plain `int`. `bool` is rejected. Invalid strings raise `ValueError`.
+
+#### Strict validation for env var and YAML values in `load_config()` ([`config.py`](logifyx/config.py))
+
+- **Bool env vars** (`LOG_COLOR`, `LOG_MASK`, `LOG_JSON`) — now only accept `"true"` or `"false"` (case-insensitive). Previously accepted `"1"`, `"0"`, `"yes"`, `"no"`, `"on"`, `"off"`. Invalid values now raise `ValueError` instead of silently defaulting.
+- **Int env vars** (`LOG_MAX_BYTES`, `LOG_BACKUP_COUNT`, `LOG_REMOTE_TIMEOUT`, `LOG_REMOTE_RETRIES`) — non-numeric values raise `ValueError`. Out-of-range values raise `ValueError` with the minimum stated.
+- **`LOG_LEVEL`** — validated against the set of valid level names. Invalid values raise `ValueError`.
+- **`LOG_SCHEMA_COMPATIBILITY`** — validated against the seven valid compatibility modes. Invalid values raise `ValueError`.
+- **`LOG_REMOTE_HEADERS`** — invalid JSON now raises `ValueError` instead of silently falling back to the default. A non-object JSON value (e.g. a list) also raises. In YAML, a non-mapping value raises.
+
+---
+
 ## [1.1.1](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.1.0...v1.1.1) - 2026-07-09
 
 ### Fixed
