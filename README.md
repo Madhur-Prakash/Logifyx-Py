@@ -300,7 +300,7 @@ LOG_SCHEMA_COMPATIBILITY: BACKWARD
 | Option | Env Variable | YAML Key | Default | Description |
 |--------|--------------|----------|---------|-------------|
 | `name` | - | - | `"app"` | Logger name (identifies the service) |
-| `level` | `LOG_LEVEL` | `LOG_LEVEL` | `"INFO"` | Minimum log level |
+| `level` | `LOG_LEVEL` | `LOG_LEVEL` | `"INFO"` | Minimum log level. One of: `DEBUG` `INFO` `WARNING` `ERROR` `CRITICAL` `NOTSET`. Invalid values raise `ValueError`. |
 
 #### Output Settings
 
@@ -308,34 +308,34 @@ LOG_SCHEMA_COMPATIBILITY: BACKWARD
 |--------|--------------|----------|---------|-------------|
 | `file` | `LOG_FILE` | `LOG_FILE` | `<name>.log` | Log file name. Defaults to the logger name (e.g. `myapp.log`) if not set anywhere. |
 | `log_dir` | `LOG_DIR` | `LOG_DIR` | `"logs"` | Directory for log files |
-| `color` | `LOG_COLOR` | `LOG_COLOR` | `True` | Enable colored console output |
-| `json_mode` | `LOG_JSON` | `LOG_JSON` | `False` | Enable JSON formatted logs |
-| `mask` | `LOG_MASK` | `LOG_MASK` | `True` | Mask sensitive data |
+| `color` | `LOG_COLOR` | `LOG_COLOR` | `True` | Colorize console output. Python: `True`/`False` only. Env/YAML: `true`/`false` only. |
+| `json_mode` | `LOG_JSON` | `LOG_JSON` | `False` | Emit each line as JSON. Mutually exclusive with `color` — `json_mode` wins if both are set. |
+| `mask` | `LOG_MASK` | `LOG_MASK` | `True` | Redact passwords, tokens, and secrets in all output. |
 
 #### File Rotation Settings
 
-| Option | Env Variable | YAML Key | Default | Description |
-|--------|--------------|----------|---------|-------------|
-| `max_bytes` | `LOG_MAX_BYTES` | `LOG_MAX_BYTES` | `10000000` | Max file size before rotation (bytes) |
-| `backup_count` | `LOG_BACKUP_COUNT` | `LOG_BACKUP_COUNT` | `5` | Number of backup files to keep |
+| Option | Env Variable | YAML Key | Default | Constraint | Description |
+|--------|--------------|----------|---------|------------|-------------|
+| `max_bytes` | `LOG_MAX_BYTES` | `LOG_MAX_BYTES` | `10000000` | int, >= 1 | Rotate the file when it reaches this size in bytes. |
+| `backup_count` | `LOG_BACKUP_COUNT` | `LOG_BACKUP_COUNT` | `5` | int, >= 0 | Number of rotated backup files to keep. `0` keeps none. |
 
 #### Remote HTTP Settings
 
-| Option | Env Variable | YAML Key | Default | Description |
-|--------|--------------|----------|---------|-------------|
-| `remote_url` | `LOG_REMOTE` | `LOG_REMOTE` | `None` | HTTP endpoint URL |
-| `remote_timeout` | `LOG_REMOTE_TIMEOUT` | `LOG_REMOTE_TIMEOUT` | `5` | Request timeout (seconds) |
-| `max_remote_retries` | `LOG_REMOTE_RETRIES` | `LOG_REMOTE_RETRIES` | `3` | Max failures before disabling |
-| `remote_headers` | `LOG_REMOTE_HEADERS` | `LOG_REMOTE_HEADERS` | `{"Content-Type": "application/json"}` | Custom HTTP headers. In env/`.env`: JSON string. In YAML: nested mapping. |
+| Option | Env Variable | YAML Key | Default | Constraint | Description |
+|--------|--------------|----------|---------|------------|-------------|
+| `remote_url` | `LOG_REMOTE` | `LOG_REMOTE` | `None` | str | HTTP endpoint URL |
+| `remote_timeout` | `LOG_REMOTE_TIMEOUT` | `LOG_REMOTE_TIMEOUT` | `5` | int, >= 1 | Request timeout in seconds |
+| `max_remote_retries` | `LOG_REMOTE_RETRIES` | `LOG_REMOTE_RETRIES` | `3` | int, >= 0 | Failures before the remote handler self-disables |
+| `remote_headers` | `LOG_REMOTE_HEADERS` | `LOG_REMOTE_HEADERS` | `{"Content-Type": "application/json"}` | dict[str, str] | Custom HTTP headers. In env/`.env`: JSON string. In YAML: nested mapping. |
 
 #### Kafka Settings
 
 | Option | Env Variable | YAML Key | Default | Description |
 |--------|--------------|----------|---------|-------------|
-| `kafka_servers` | `LOG_KAFKA_SERVERS` | `LOG_KAFKA_SERVERS` | `None` | Kafka bootstrap servers |
+| `kafka_servers` | `LOG_KAFKA_SERVERS` | `LOG_KAFKA_SERVERS` | `None` | Kafka bootstrap servers. `str` or `list[str]`. |
 | `kafka_topic` | `LOG_KAFKA_TOPIC` | `LOG_KAFKA_TOPIC` | `"logs"` | Kafka topic name |
 | `schema_registry_url` | `LOG_SCHEMA_REGISTRY` | `LOG_SCHEMA_REGISTRY` | `None` | Schema Registry URL |
-| `schema_compatibility` | `LOG_SCHEMA_COMPATIBILITY` | `LOG_SCHEMA_COMPATIBILITY` | `"BACKWARD"` | Schema compatibility mode |
+| `schema_compatibility` | `LOG_SCHEMA_COMPATIBILITY` | `LOG_SCHEMA_COMPATIBILITY` | `"BACKWARD"` | Schema compatibility mode. One of: `BACKWARD` `BACKWARD_TRANSITIVE` `FORWARD` `FORWARD_TRANSITIVE` `FULL` `FULL_TRANSITIVE` `NONE`. |
 
 ### Log Levels
 

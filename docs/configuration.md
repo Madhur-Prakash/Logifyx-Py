@@ -24,44 +24,44 @@ Every setting has a corresponding env var with a `LOG_` prefix. All can be set i
 
 ### Core
 
-| Env Var | Python kwarg | Default | Description |
-|---------|-------------|---------|-------------|
-| `LOG_LEVEL` | `level` | `"INFO"` | Minimum level to emit. One of: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. Logs below this level are silently dropped. |
-| `LOG_MASK` | `mask` | `true` | Auto-mask sensitive values like `password=`, `token=`, `secret=`, `api_key=` in every handler. |
+| Env Var | Python kwarg | Default | Accepted values | Description |
+|---------|-------------|---------|-----------------|-------------|
+| `LOG_LEVEL` | `level` | `"INFO"` | `DEBUG` `INFO` `WARNING` `ERROR` `CRITICAL` `NOTSET` | Minimum level to emit. Logs below this level are silently dropped. Invalid values raise `ValueError`. |
+| `LOG_MASK` | `mask` | `true` | `true` / `false` only | Auto-mask sensitive values like `password=`, `token=`, `secret=`, `api_key=` in every handler. |
 
 ### Console Output
 
-| Env Var | Python kwarg | Default | Description |
-|---------|-------------|---------|-------------|
-| `LOG_COLOR` | `color` | `true` | Color the console output by log level. Set `false` for plain text (e.g. when piping output to a file). |
-| `LOG_JSON` | `json_mode` | `false` | Emit each log as a single-line JSON object instead of the pipe-separated text format. Useful when piping to `jq` or a log aggregator. `color` and `json_mode` are mutually exclusive — if both are `true`, `json_mode` is ignored. |
+| Env Var | Python kwarg | Default | Accepted values | Description |
+|---------|-------------|---------|-----------------|-------------|
+| `LOG_COLOR` | `color` | `true` | `true` / `false` only | Color the console output by log level. Set `false` for plain text (e.g. when piping output to a file). |
+| `LOG_JSON` | `json_mode` | `false` | `true` / `false` only | Emit each log as a single-line JSON object. `color` and `json_mode` are mutually exclusive — if both are `true`, `json_mode` wins. |
 
 ### File Output
 
-| Env Var | Python kwarg | Default | Description |
-|---------|-------------|---------|-------------|
-| `LOG_FILE` | `file` | `<logger-name>.log` | Log file name inside `LOG_DIR`. If not set, defaults to the logger name (e.g. `myapp.log`). |
-| `LOG_DIR` | `log_dir` | `"logs"` | Directory where log files are written. Created automatically if it does not exist. |
-| `LOG_MAX_BYTES` | `max_bytes` | `10000000` (10 MB) | When the log file exceeds this size it is rotated. Set to `0` to disable rotation. |
-| `LOG_BACKUP_COUNT` | `backup_count` | `5` | How many rotated backup files to keep (`app.log.1` … `app.log.5`). Oldest is deleted when a new one is created. |
+| Env Var | Python kwarg | Default | Constraint | Description |
+|---------|-------------|---------|------------|-------------|
+| `LOG_FILE` | `file` | `<logger-name>.log` | str | Log file name inside `LOG_DIR`. Defaults to the logger name (e.g. `myapp.log`). |
+| `LOG_DIR` | `log_dir` | `"logs"` | str | Directory where log files are written. Created automatically if it does not exist. |
+| `LOG_MAX_BYTES` | `max_bytes` | `10000000` (10 MB) | int, >= 1 | Rotate the file when it reaches this size in bytes. |
+| `LOG_BACKUP_COUNT` | `backup_count` | `5` | int, >= 0 | How many rotated backup files to keep (`app.log.1` … `app.log.N`). Set to `0` to keep none. |
 
 ### Remote HTTP
 
-| Env Var | Python kwarg | Default | Description |
-|---------|-------------|---------|-------------|
-| `LOG_REMOTE` | `remote_url` | `None` | HTTP(S) endpoint URL. When set, every log record is POSTed as JSON to this URL in the background (non-blocking). |
-| `LOG_REMOTE_TIMEOUT` | `remote_timeout` | `5` | Seconds to wait for the HTTP server to respond before timing out. |
-| `LOG_REMOTE_RETRIES` | `max_remote_retries` | `3` | Number of consecutive failures allowed before the remote handler permanently disables itself (circuit breaker). |
-| `LOG_REMOTE_HEADERS` | `remote_headers` | `{"Content-Type": "application/json"}` | Custom HTTP headers sent with every request. In shell or `.env` write as a JSON string: `LOG_REMOTE_HEADERS={"Authorization": "Bearer tok"}`. In `logifyx.yaml` write as a nested mapping (see YAML example below). |
+| Env Var | Python kwarg | Default | Constraint | Description |
+|---------|-------------|---------|------------|-------------|
+| `LOG_REMOTE` | `remote_url` | `None` | str | HTTP(S) endpoint URL. When set, every log record is POSTed as JSON in the background (non-blocking). |
+| `LOG_REMOTE_TIMEOUT` | `remote_timeout` | `5` | int, >= 1 | Seconds to wait for the HTTP server to respond before timing out. |
+| `LOG_REMOTE_RETRIES` | `max_remote_retries` | `3` | int, >= 0 | Consecutive failures allowed before the remote handler permanently disables itself (circuit breaker). |
+| `LOG_REMOTE_HEADERS` | `remote_headers` | `{"Content-Type": "application/json"}` | dict[str, str] | Custom HTTP headers. In `.env`: valid JSON string. In YAML: nested mapping. Invalid JSON raises `ValueError`. |
 
 ### Kafka Streaming
 
-| Env Var | Python kwarg | Default | Description |
-|---------|-------------|---------|-------------|
-| `LOG_KAFKA_SERVERS` | `kafka_servers` | `None` | Comma-separated list of Kafka broker addresses. Setting this enables the Kafka handler. Example: `localhost:9092` or `b1:9092,b2:9092,b3:9092`. |
-| `LOG_KAFKA_TOPIC` | `kafka_topic` | `"logs"` | Kafka topic logs are published to. The topic is created automatically if the broker is configured to allow it. |
-| `LOG_SCHEMA_REGISTRY` | `schema_registry_url` | `None` | URL of a Confluent Schema Registry. When set, Logifyx registers its Avro schema on startup and serializes messages in Confluent wire format (5-byte header + Avro binary). When `None`, Logifyx still uses Avro binary but without the schema ID header. See the [Kafka Streaming guide](kafka.md#what-is-schema-registry) for details. |
-| `LOG_SCHEMA_COMPATIBILITY` | `schema_compatibility` | `"BACKWARD"` | Schema evolution rule enforced by the Schema Registry. `BACKWARD` (default) means new schema versions can read data written by older versions. Other options: `FORWARD`, `FULL`, `NONE`. |
+| Env Var | Python kwarg | Default | Constraint | Description |
+|---------|-------------|---------|------------|-------------|
+| `LOG_KAFKA_SERVERS` | `kafka_servers` | `None` | str or list[str] | Kafka broker address(es). Example: `localhost:9092` or `b1:9092,b2:9092`. Setting this enables the Kafka handler. |
+| `LOG_KAFKA_TOPIC` | `kafka_topic` | `"logs"` | str | Kafka topic logs are published to. |
+| `LOG_SCHEMA_REGISTRY` | `schema_registry_url` | `None` | str | URL of a Confluent Schema Registry. When set, messages are serialized in Confluent wire format (5-byte header + Avro binary). See the [Kafka guide](kafka.md). |
+| `LOG_SCHEMA_COMPATIBILITY` | `schema_compatibility` | `"BACKWARD"` | see below | Schema evolution rule. Must be one of: `BACKWARD`, `BACKWARD_TRANSITIVE`, `FORWARD`, `FORWARD_TRANSITIVE`, `FULL`, `FULL_TRANSITIVE`, `NONE`. Invalid values raise `ValueError`. |
 
 ---
 
@@ -90,6 +90,38 @@ JSON mode output (`json_mode=True`):
 ```json
 {"timestamp": "2026-06-11 19:45:17", "level": "INFO", "logger": "myapp", "function": "handle_request", "line": 42, "message": "User logged in"}
 ```
+
+---
+
+## Validation Rules
+
+Logifyx validates every value at configuration time and raises immediately on bad input — no silent fallbacks.
+
+### Python kwargs (`Logifyx()` / `get_logify_logger()`)
+
+| Type | Rule | Bad example → error |
+|------|------|---------------------|
+| bool (`color`, `mask`, `json_mode`) | Must be `True` or `False` — no strings, no ints | `color="true"` → `TypeError` |
+| int (`max_bytes`) | Must be `int`, >= 1 | `max_bytes=0` → `ValueError` |
+| int (`backup_count`, `max_remote_retries`) | Must be `int`, >= 0 | `backup_count=-1` → `ValueError` |
+| int (`remote_timeout`) | Must be `int`, >= 1 | `remote_timeout="5"` → `TypeError` |
+| str params | Must be `str` | `log_dir=123` → `TypeError` |
+| `remote_headers` | Must be `dict[str, str]` | `remote_headers={"k": 1}` → `TypeError` |
+| `kafka_servers` | `str` or `list[str]` | `kafka_servers=9092` → `TypeError` |
+| `schema_compatibility` | One of the 7 valid values | `schema_compatibility="strict"` → `ValueError` |
+| `level` | Valid level name (`str`) or plain `int`, not `bool` | `level=True` → `TypeError` |
+
+> **Note:** `bool` is a subclass of `int` in Python, so `True` and `False` pass a plain `isinstance(x, int)` check. Logifyx rejects them explicitly for all `int` params.
+
+### Env vars and YAML
+
+| Type | Rule | Bad example → error |
+|------|------|---------------------|
+| bool (`LOG_COLOR`, `LOG_MASK`, `LOG_JSON`) | Only `"true"` or `"false"` (case-insensitive) | `LOG_COLOR=1` → `ValueError` |
+| int env vars | Must parse as integer, must meet minimum | `LOG_MAX_BYTES=abc` → `ValueError` |
+| `LOG_LEVEL` | Must be a valid level name | `LOG_LEVEL=verbose` → `ValueError` |
+| `LOG_SCHEMA_COMPATIBILITY` | Must be one of the 7 valid values | `LOG_SCHEMA_COMPATIBILITY=strict` → `ValueError` |
+| `LOG_REMOTE_HEADERS` | Must be a valid JSON object in `.env`; a mapping in YAML | `LOG_REMOTE_HEADERS=not-json` → `ValueError` |
 
 ---
 
