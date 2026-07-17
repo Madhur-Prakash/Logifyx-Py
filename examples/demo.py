@@ -39,7 +39,7 @@ api_log = get_logify_logger(
     "apiss", 
     file="api.log",
     log_dir="logs",
-    color=True
+    color="true"
 )
 
 api_log.info("API endpoint hit")

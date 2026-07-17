@@ -330,7 +330,112 @@ class Logifyx(logging.Logger):
         # Skip if already configured (handlers exist)
         if self.handlers:
             return self
-            
+
+        # --- strict type validation ---
+
+        # str params
+        for param, value in (
+            ("config_dir",          config_dir),
+            ("env_file",            env_file),
+            ("yaml_file",           yaml_file),
+            ("remote_url",          remote_url),
+            ("log_dir",             log_dir),
+            ("file",                file),
+            ("kafka_topic",         kafka_topic),
+            ("schema_registry_url", schema_registry_url),
+        ):
+            if value is not None and not isinstance(value, str):
+                raise TypeError(
+                    f"{param} must be a str, got {value!r} ({type(value).__name__})"
+                )
+
+        # bool params — True/False only, no strings or ints accepted
+        for param, value in (
+            ("color",     color),
+            ("mask",      mask),
+            ("json_mode", json_mode),
+        ):
+            if value is not None and not isinstance(value, bool):
+                raise TypeError(
+                    f"{param} must be True or False, got {value!r} ({type(value).__name__})"
+                )
+
+        # int params — bool subclasses int in Python so explicitly reject those too
+        for param, value, min_val in (
+            ("max_bytes",         max_bytes,         1),
+            ("backup_count",      backup_count,      0),
+            ("remote_timeout",    remote_timeout,    1),
+            ("max_remote_retries", max_remote_retries, 0),
+        ):
+            if value is not None:
+                if isinstance(value, bool) or not isinstance(value, int):
+                    raise TypeError(
+                        f"{param} must be an int, got {value!r} ({type(value).__name__})"
+                    )
+                if value < min_val:
+                    raise ValueError(
+                        f"{param} must be >= {min_val}, got {value!r}"
+                    )
+
+        # kafka_servers — str ("host:port") or list of str
+        if kafka_servers is not None:
+            if not isinstance(kafka_servers, (str, list)):
+                raise TypeError(
+                    f"kafka_servers must be a str or list of str, got {kafka_servers!r} ({type(kafka_servers).__name__})"
+                )
+            if isinstance(kafka_servers, list) and not all(isinstance(s, str) for s in kafka_servers):
+                raise TypeError(
+                    "kafka_servers list must contain only str entries, e.g. ['host1:9092', 'host2:9092']"
+                )
+
+        # remote_headers — dict with str keys and str values
+        if remote_headers is not None:
+            if not isinstance(remote_headers, dict):
+                raise TypeError(
+                    f"remote_headers must be a dict, got {remote_headers!r} ({type(remote_headers).__name__})"
+                )
+            bad = [(k, v) for k, v in remote_headers.items() if not isinstance(k, str) or not isinstance(v, str)]
+            if bad:
+                k, v = bad[0]
+                raise TypeError(
+                    f"remote_headers must be Dict[str, str] — key {k!r} ({type(k).__name__}) "
+                    f"or value {v!r} ({type(v).__name__}) is not a str"
+                )
+
+        # schema_compatibility — fixed set of valid values
+        _VALID_COMPATIBILITY = {
+            "BACKWARD", "BACKWARD_TRANSITIVE",
+            "FORWARD",  "FORWARD_TRANSITIVE",
+            "FULL",     "FULL_TRANSITIVE",
+            "NONE",
+        }
+        if schema_compatibility is not None:
+            if not isinstance(schema_compatibility, str):
+                raise TypeError(
+                    f"schema_compatibility must be a str, got {schema_compatibility!r} ({type(schema_compatibility).__name__})"
+                )
+            if schema_compatibility.upper() not in _VALID_COMPATIBILITY:
+                raise ValueError(
+                    f"schema_compatibility must be one of {sorted(_VALID_COMPATIBILITY)}, "
+                    f"got {schema_compatibility!r}"
+                )
+
+        # level — str matching a valid level name, or a plain int (not bool)
+        if level is not None:
+            if isinstance(level, bool):
+                raise TypeError(
+                    f"level must be a log-level str or int, got {level!r} ({type(level).__name__})"
+                )
+            if isinstance(level, str):
+                if level.upper() not in _VALID_LEVELS:
+                    raise ValueError(
+                        f"level must be one of {sorted(_VALID_LEVELS)}, got {level!r}"
+                    )
+            elif not isinstance(level, int):
+                raise TypeError(
+                    f"level must be a log-level str or int, got {level!r} ({type(level).__name__})"
+                )
+
         # Load base config
         self.config = load_config(config_dir=config_dir, env_file=env_file, yaml_file=yaml_file)
 
