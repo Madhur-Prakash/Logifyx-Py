@@ -13,36 +13,37 @@ from logifyx import Logifyx, ContextLoggerAdapter, get_logify_logger, setup_logi
 # ========================================
 # Option 1: Direct Instantiation (Simple)
 # ========================================
-log = Logifyx(name="mysh8hdapp", json_mode=True)  # Create a logger instance
+log = Logifyx(name="testing", json_mode=True)  # Create a logger instance
+a = 4
+log.info("User authenticated", a)
+# log.info("Server started")
+# log.critical("password=123456 token=abcd123")  # Masked automatically
+# log.critical("password=123456 token=abcd123")  # Masked automatically
+# log.info("Server started")
+# log.warning("password=123456 token=abcd123")  # Masked automatically
+# log.error("Login failed")
 
-log.info("Server started")
-log.critical("password=123456 token=abcd123")  # Masked automatically
-log.critical("password=123456 token=abcd123")  # Masked automatically
-log.info("Server started")
-log.warning("password=123456 token=abcd123")  # Masked automatically
-log.error("Login failed")
+# def loef():
+#     log.error("An error occurred in loef()")
+#     log.error("An error occurred in loef()")
+#     log.error("An error occurred in loef()")
+#     log.info("An error occurred in loef()")
 
-def loef():
-    log.error("An error occurred in loef()")
-    log.error("An error occurred in loef()")
-    log.error("An error occurred in loef()")
-    log.info("An error occurred in loef()")
+# # ========================================
+# # Option 2: Global Registration (Recommended for large apps)
+# # ========================================
+# setup_logify()  # Call once at app startup
+# loef()  # Still works with direct instance
 
-# ========================================
-# Option 2: Global Registration (Recommended for large apps)
-# ========================================
-setup_logify()  # Call once at app startup
-loef()  # Still works with direct instance
+# # Now use get_logify_logger anywhere in your app
+# api_log = get_logify_logger(
+#     "apiss", 
+#     file="api.log",
+#     log_dir="logs",
+#     color=True
+# )
 
-# Now use get_logify_logger anywhere in your app
-api_log = get_logify_logger(
-    "apiss", 
-    file="api.log",
-    log_dir="logs",
-    color=True
-)
-
-api_log.info("API endpoint hit")
+# api_log.info("API endpoint hit")
 
 
 # ========================================
@@ -53,7 +54,7 @@ request_log = ContextLoggerAdapter(
     log,
     {"request_id": "req-abc123", "user_id": 42}
 )
-
+a = 4
 request_log.info("User authenticated")
 request_log.warning("Rate limit approaching")
 request_log.error("Payment failed")

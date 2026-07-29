@@ -44,20 +44,32 @@ class PlainLogifyxFormatter(logging.Formatter):
         return _format_line(record, self.datefmt, color=False)
 
 
+_STANDARD_RECORD_ATTRS = frozenset({
+    "args", "created", "exc_info", "exc_text", "filename", "funcName",
+    "levelname", "levelno", "lineno", "message", "module", "msecs", "msg",
+    "name", "pathname", "process", "processName", "relativeCreated",
+    "stack_info", "thread", "threadName", "taskName",
+})
+
+
 class CompactJsonFormatter(jsonlogger.JsonFormatter):
     """JSON-mode formatter: single-line JSON object per record."""
 
     def format(self, record):
         dt = logging.Formatter(datefmt=self.datefmt).formatTime(record, self.datefmt)
         func = record.filename.replace(".py", "") if record.funcName == "<module>" else record.funcName
-        return json.dumps({
+        out = {
             "timestamp": dt,
             "level":     record.levelname,
             "logger":    record.name,
             "function":  func,
             "line":      record.lineno,
             "message":   record.getMessage(),
-        }, ensure_ascii=False)
+        }
+        for key, value in record.__dict__.items():
+            if key not in _STANDARD_RECORD_ATTRS and not key.startswith("_"):
+                out[key] = value
+        return json.dumps(out, ensure_ascii=False, default=str)
 
 
 def get_formatter(json_mode=False, color=True):
