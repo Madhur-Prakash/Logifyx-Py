@@ -5,6 +5,72 @@ All notable changes to Logifyx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.1.2...v1.1.3) - 2026-07-29
+
+### Fixed
+
+#### `ContextLoggerAdapter` context fields silently dropped in JSON mode ([`formatter.py`](logifyx/formatter.py))
+
+**Symptom:** Using `ContextLoggerAdapter` with a `json_mode=True` logger produced JSON output with no context fields at all:
+
+```python
+request_log = ContextLoggerAdapter(log, {"request_id": "req-abc123", "user_id": 42})
+request_log.info("User authenticated")
+# ❌ {"timestamp": "...", "level": "INFO", ..., "message": "User authenticated"}
+# ✅ {"timestamp": "...", "level": "INFO", ..., "message": "User authenticated", "request_id": "req-abc123", "user_id": 42}
+```
+
+**Root cause:** `CompactJsonFormatter.format()` built a hardcoded 6-field dict (`timestamp`, `level`, `logger`, `function`, `line`, `message`). `ContextLoggerAdapter.process()` correctly merges context into `kwargs["extra"]`, which the logging machinery writes as extra attributes on the `LogRecord` — but the hardcoded formatter never read `record.__dict__`, so all context was silently discarded.
+
+The same issue affected any field passed via `extra={"key": value}` on any log call — they appeared on the record but were never included in the output.
+
+**Fix:** After building the base 6-field dict, the formatter now scans `record.__dict__` for any key that is not a standard `LogRecord` attribute and not underscore-prefixed, and includes it in the output:
+
+```python
+for key, value in record.__dict__.items():
+    if key not in _STANDARD_RECORD_ATTRS and not key.startswith("_"):
+        out[key] = value
+```
+
+`json.dumps` now also uses `default=str` so non-JSON-serialisable values (custom objects, datetimes) are converted to strings instead of crashing the formatter.
+
+---
+
+#### `MaskFilter` crashed on args that don't match format specifiers ([`filters.py`](logifyx/filters.py))
+
+**Symptom:** Calling `log.info("User authenticated", some_value)` when masking was enabled raised `TypeError: not all arguments converted during string formatting` at the call site — even if the message had no `%s` placeholder.
+
+**Root cause:** `MaskFilter.filter()` calls `record.getMessage()` to get the fully-formatted string before masking it. `filter()` is called by `Handler.handle()` — *outside* the `try/except` block that wraps `Handler.emit()`. So when `getMessage()` raised (because `"User authenticated" % (4,)` fails — no format specifier), the `TypeError` propagated all the way back to the original `log.info(...)` call site rather than being swallowed by the handler.
+
+**Fix:** Wrap `getMessage()` in a `try/except TypeError` and fall back to `str(record.msg)` if formatting fails:
+
+```python
+try:
+    msg = record.getMessage()
+except TypeError:
+    msg = str(record.msg)
+```
+
+---
+
+#### `log.info("msg", value)` without a format specifier crashed instead of appending value ([`core.py`](logifyx/core.py))
+
+**Symptom:** Passing a positional value for quick debugging — `log.info("User authenticated", user_id)` — crashed with `TypeError` because there was no `%s` placeholder in the message. Standard Python logging requires every positional arg to match a `%` format specifier.
+
+**Fix:** `Logifyx` now overrides `_log()` to catch this case. If the args cannot be formatted into the message string, they are appended as a bracketed repr suffix and `args` is cleared before the record is created:
+
+```python
+log.info("User authenticated", user_id)
+# → "User authenticated [42]"
+
+log.info("port %d started", 8080)
+# → "port 8080 started"  (standard % formatting, unchanged)
+```
+
+`%`-style formatting is fully preserved — the override only activates when `msg % args` would raise.
+
+---
+
 ## [1.1.2](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.1.1...v1.1.2) - 2026-07-17
 
 ### Added
