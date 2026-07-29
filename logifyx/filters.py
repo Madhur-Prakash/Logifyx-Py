@@ -15,8 +15,10 @@ class MaskFilter(logging.Filter):
     ]
 
     def filter(self, record):
-
-        msg = record.getMessage()
+        try:
+            msg = record.getMessage()
+        except TypeError:
+            msg = str(record.msg)
 
         for pattern in self.SENSITIVE:
             msg = re.sub(pattern, "****", msg)

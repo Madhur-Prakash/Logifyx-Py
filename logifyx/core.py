@@ -520,6 +520,17 @@ class Logifyx(logging.Logger):
             self.addHandler(queue_handler)
             _start_queue_listener(async_handlers)
 
+    def _log(self, level, msg, args, **kwargs):
+        if args:
+            try:
+                str(msg) % args
+            except (TypeError, ValueError):
+                # args don't match any format specifier — append them as a debug suffix
+                parts = [repr(a) for a in (args if isinstance(args, tuple) else (args,))]
+                msg = f"{msg} {', '.join(parts)}"
+                args = ()
+        super()._log(level, msg, args, **kwargs)
+
     def reload(self) -> None:
         """
         Tear down all handlers and reconfigure using the kwargs from __init__.

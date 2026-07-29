@@ -15,7 +15,7 @@ from logifyx import Logifyx, ContextLoggerAdapter, get_logify_logger, setup_logi
 # ========================================
 log = Logifyx(name="testing", json_mode=True)  # Create a logger instance
 a = 4
-log.info("User authenticated", a)
+log.info("User authenticated:", a)
 # log.info("Server started")
 # log.critical("password=123456 token=abcd123")  # Masked automatically
 # log.critical("password=123456 token=abcd123")  # Masked automatically
