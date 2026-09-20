@@ -164,14 +164,33 @@ log.error("Authentication failed", exc_info=True)
 ### Global Registration (Recommended for Large Apps)
 
 ```python
-from logifyx import setup_logify, get_logify_logger
+from logifyx import configure_logging, get_logify_logger
 
-# Call once at app startup
-setup_logify()
+# Call once at app startup — sets the policy for the whole process
+configure_logging(level="INFO", output="file", log_file="logs/app.log")
 
 # Now use get_logify_logger anywhere in your app
-log = get_logify_logger("auth", log_file="logs/auth.log")
-api_log = get_logify_logger("api", log_file="logs/api.log")
+log = get_logify_logger("auth")
+api_log = get_logify_logger("api")
+```
+
+Each logger can still override the shared policy:
+
+```python
+audit = get_logify_logger("audit", log_file="logs/audit.log")   # own file
+debug = get_logify_logger("debug", output="both")               # also on console
+```
+
+If you want Logifyx loggers but *no* process-wide policy — each logger
+configuring itself, or a library that must not impose settings on its host —
+use `setup_logify()` instead. See
+[`setup_logify()` vs `configure_logging()`](#setup_logify-vs-configure_logging).
+
+```python
+from logifyx import setup_logify, get_logify_logger
+
+setup_logify()
+log = get_logify_logger("auth", output="file", log_file="logs/auth.log")
 ```
 
 ### Context Injection (Request Tracking)
@@ -657,6 +676,60 @@ log_dir="/var/log/myapp", log_file="a.log" # -> /var/log/myapp/a.log
 # nothing set                              # -> logs/<logger name>.log
 ```
 
+
+#### One file, or one file per logger?
+
+This is decided by whether anything names the log file:
+
+```python
+# Omit log_file -> each logger writes its own file, named after itself
+configure_logging(output="file", log_dir="logs")
+
+get_logify_logger("billing").info("...")     # logs/billing.log
+get_logify_logger("auth").info("...")        # logs/auth.log
+```
+
+```python
+# Name it -> every logger shares that one file
+configure_logging(output="file", log_dir="logs", log_file="app.log")
+
+get_logify_logger("billing").info("...")     # logs/app.log
+get_logify_logger("auth").info("...")        # logs/app.log
+```
+
+Naming the file is treated as a deliberate instruction, so Logifyx does not
+substitute the logger name into it. Dotted logger names become dotted file names:
+`get_logify_logger("app.billing")` writes `logs/app.billing.log`.
+
+Sharing one file is safe. Each logger gets its own handler pointing at the same
+path, and `ConcurrentRotatingFileHandler` takes an inter-process lock around
+every write, so records interleave cleanly across threads and processes. Every
+line carries the logger name, so a shared file stays greppable:
+
+```
+2026-09-20 22:14:01 | INFO | billing:charge:88 - payment captured
+2026-09-20 22:14:01 | INFO | auth:login:24    - session opened
+```
+
+One caveat: `max_bytes` and `backup_count` apply to the combined stream, so a
+chatty logger rotates the quiet ones' history out faster.
+
+For a custom layout, give each logger its own path — directories are created
+as needed:
+
+```python
+get_logify_logger("billing", log_file="logs/money/billing.log")
+get_logify_logger("auth",    log_file="logs/security/auth.log")
+```
+
+Or keep a shared default and carve out exceptions, since a per-logger kwarg
+outranks the `configure_logging()` default:
+
+```python
+configure_logging(output="file", log_file="logs/app.log")   # everything here...
+get_logify_logger("audit", log_file="logs/audit.log")       # ...except this
+```
+
 #### File Structure
 
 ```
@@ -739,7 +812,7 @@ if __name__ == '__main__':
 
 **Enabled when `kafka_servers` is set.** Streams logs to Apache Kafka with Avro serialization.
 
-See [Kafka Streaming](#-kafka-streaming) section for detailed documentation.
+See [Kafka Streaming](#kafka-streaming) section for detailed documentation.
 
 ---
 
@@ -1226,21 +1299,59 @@ from logifyx import get_logify_logger
 
 log = get_logify_logger(
     name: str,                   # Logger name (singleton per name)
-    **kwargs                     # Same options as Logifyx constructor
+    level: int | str = None,     # Minimum level
+    output: str = None,          # console | file | both | none
+    log_file: str = None,        # e.g. "logs/auth.log"
+    **kwargs                     # Same options as the Logifyx constructor
 )
 ```
 
-**Note:** Requires calling `setup_logify()` first.
+**Requires `configure_logging()` or `setup_logify()` first** — either one
+registers Logifyx as the logger class. Without one, this raises `TypeError`.
+
+**One instance per name — the first call wins.** Every later call with the same
+name returns that same configured object and *ignores* the kwargs:
+
+```python
+log = get_logify_logger("billing", log_file="logs/a.log")   # creates it
+log = get_logify_logger("billing", log_file="logs/b.log")   # kwargs ignored,
+                                                            # still logs/a.log
+```
+
+That is what lets `get_logify_logger("billing")` return the same logger from
+anywhere in your codebase. The practical consequence: put per-logger settings on
+the first call — usually at module import in the module that owns the logger.
+To change one afterwards, use `set_output()` rather than calling
+`get_logify_logger()` again:
+
+```python
+log.set_output("file", log_file="logs/money/billing.log")
+```
 
 ### `setup_logify()` Function
 
-Register Logifyx as the global logger class.
+Register Logifyx as the global logger class, and nothing else.
 
 ```python
 from logifyx import setup_logify
 
 setup_logify()  # Call once at app startup
 ```
+
+#### `setup_logify()` vs `configure_logging()`
+
+| | `setup_logify()` | `configure_logging()` |
+|---|---|---|
+| Registers `Logifyx` as the logger class | ✅ | ✅ |
+| Stores process-wide defaults | ❌ | ✅ |
+| Rebuilds handlers on existing loggers | ❌ | ✅ |
+
+`configure_logging()` does the registration too, so you never need both.
+
+Reach for `configure_logging()` in an application — one logging policy for the
+process is normally what you want. Reach for `setup_logify()` when each logger
+should configure itself, or **inside a library**, which must not overwrite the
+logging settings of the application using it.
 
 ### `flush()` Function
 

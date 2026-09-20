@@ -122,6 +122,60 @@ log = Logifyx(
 If the directory or file cannot be created, Logifyx raises `LogifyxFileError` (also a
 `RuntimeError`) at configuration time rather than silently dropping records.
 
+
+### One file, or one file per logger?
+
+This is decided by whether anything names the log file:
+
+```python
+# Omit log_file -> each logger writes its own file, named after itself
+configure_logging(output="file", log_dir="logs")
+
+get_logify_logger("billing").info("...")     # logs/billing.log
+get_logify_logger("auth").info("...")        # logs/auth.log
+```
+
+```python
+# Name it -> every logger shares that one file
+configure_logging(output="file", log_dir="logs", log_file="app.log")
+
+get_logify_logger("billing").info("...")     # logs/app.log
+get_logify_logger("auth").info("...")        # logs/app.log
+```
+
+Naming the file is treated as a deliberate instruction, so Logifyx does not
+substitute the logger name into it. Dotted logger names become dotted file names:
+`get_logify_logger("app.billing")` writes `logs/app.billing.log`.
+
+Sharing one file is safe. Each logger gets its own handler pointing at the same
+path, and `ConcurrentRotatingFileHandler` takes an inter-process lock around
+every write, so records interleave cleanly across threads and processes. Every
+line carries the logger name, so a shared file stays greppable:
+
+```
+2026-09-20 22:14:01 | INFO | billing:charge:88 - payment captured
+2026-09-20 22:14:01 | INFO | auth:login:24    - session opened
+```
+
+One caveat: `max_bytes` and `backup_count` apply to the combined stream, so a
+chatty logger rotates the quiet ones' history out faster.
+
+For a custom layout, give each logger its own path — directories are created
+as needed:
+
+```python
+get_logify_logger("billing", log_file="logs/money/billing.log")
+get_logify_logger("auth",    log_file="logs/security/auth.log")
+```
+
+Or keep a shared default and carve out exceptions, since a per-logger kwarg
+outranks the `configure_logging()` default:
+
+```python
+configure_logging(output="file", log_file="logs/app.log")   # everything here...
+get_logify_logger("audit", log_file="logs/audit.log")       # ...except this
+```
+
 ### Rotation behaviour
 
 When `myapp.log` hits `max_bytes`:
