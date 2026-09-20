@@ -86,10 +86,14 @@ def clean_env():
     """
     env_vars = [
         "LOG_LEVEL", "LOG_COLOR", "LOG_MAX_BYTES", "LOG_BACKUP_COUNT",
-        "LOG_DIR", "LOG_FILE", "LOG_MODE", "LOG_JSON", "LOG_MASK",
+        "LOG_DIR", "LOG_FILE", "LOG_OUTPUT", "LOG_JSON", "LOG_MASK",
         "LOG_REMOTE", "LOG_KAFKA_SERVERS", "LOG_KAFKA_TOPIC",
         "LOG_SCHEMA_REGISTRY", "LOG_SCHEMA_COMPATIBILITY",
-        "LOG_REMOTE_TIMEOUT", "LOG_REMOTE_RETRIES"
+        "LOG_REMOTE_TIMEOUT", "LOG_REMOTE_RETRIES", "LOG_REMOTE_HEADERS",
+        # LOGIFYX_* aliases must be cleared too, or a value set by one test
+        # leaks into every later test in the session.
+        "LOGIFYX_LEVEL", "LOGIFYX_OUTPUT", "LOGIFYX_LOG_FILE",
+        "LOGIFYX_LOG_DIR",
     ]
     
     # Store and clear

@@ -5,6 +5,160 @@ All notable changes to Logifyx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.1.3...v2.0.0) - 2026-09-20
+
+### Added
+
+#### Configurable output destinations ([`output.py`](logifyx/output.py), [`handler.py`](logifyx/handler.py), [`core.py`](logifyx/core.py))
+
+Logs can now be sent to the console, a file, both, or nowhere — the headline addition being **file-only logging with no terminal output at all**.
+
+```python
+from logifyx import configure_logging, get_logify_logger
+
+configure_logging(level="INFO", output="file", log_file="logs/app.log")
+
+logger = get_logify_logger("my_app")
+logger.info("Application started")   # -> logs/app.log, nothing on stdout/stderr
+```
+
+| `output` | Console | File |
+|----------|---------|------|
+| `"both"` *(default)* | yes | yes |
+| `"file"` | no | yes |
+| `"console"` | yes | no |
+| `"none"` | no | no |
+
+`"both"` is the default, so existing behaviour is unchanged until you opt in. Aliases `console_only`, `file_only`, `console_and_file`, `off` and `disabled` are accepted, case-insensitively. `output` governs the console and file destinations only — remote HTTP and Kafka delivery are still controlled by `remote_url` / `kafka_servers`.
+
+In `"none"` mode Logifyx attaches a `NullHandler`, so Python's `lastResort` fallback — which prints WARNING and above to stderr — cannot leak output.
+
+Configurable everywhere: `output=` kwarg, `LOG_OUTPUT` / `LOGIFYX_OUTPUT` env var, `LOG_OUTPUT` in `logifyx.yaml`, and `logifyx --output file` on the CLI.
+
+#### `configure_logging()` — process-wide configuration ([`core.py`](logifyx/core.py))
+
+A single entry point that registers Logifyx as the logger class, stores settings as process-wide defaults, and re-applies them to every Logifyx logger that already exists.
+
+```python
+configure_logging(output="both", log_file="logs/app.log")
+logger.info("test 1")        # terminal + file
+
+configure_logging(output="file", log_file="logs/app.log")
+logger.info("test 2")        # file only - the console handler is removed
+```
+
+Safe to call repeatedly. Each call **replaces** Logifyx-owned handlers instead of appending, so three identical calls still produce exactly one handler and one copy of each log line.
+
+New priority chain:
+
+```
+per-logger kwargs > configure_logging() > env / .env > logifyx.yaml > defaults
+```
+
+Bad destinations are reported at the `configure_logging()` call site rather than at the first log call, and a rejected call leaves no half-applied state.
+
+#### Handler ownership tracking ([`output.py`](logifyx/output.py))
+
+Every handler Logifyx creates is stamped `_logifyx_managed` plus a role (`console`, `file`, `remote`, `kafka`, `queue`, `null`). Reconfiguration only ever touches stamped handlers, so handlers your application or a third-party library attached are never removed, closed, or reformatted.
+
+Roles replace `isinstance` dispatch in `_build()`. Since `logging.FileHandler` subclasses `logging.StreamHandler`, the old check relied on a negative isinstance test to tell the two apart; role-based dispatch states the intent directly and cannot misclassify a future handler type.
+
+#### Other additions
+
+- `Logifyx.set_output(output, log_file=None, log_dir=None)` — switch a single logger's destination at runtime.
+- `Logifyx.output` property — the resolved mode.
+- `Logifyx.configure(..., replace=True)` — rebuild Logifyx handlers instead of no-opping.
+- `reset_logging()` — clear process-wide defaults and detach Logifyx handlers. Useful in test suites.
+- `get_global_config()` — read back the defaults set by `configure_logging()`.
+- Exception hierarchy: `LogifyxError`, `LogifyxConfigurationError` (also a `ValueError`), `LogifyxFileError` (also a `RuntimeError`).
+- `LOGIFYX_LEVEL`, `LOGIFYX_OUTPUT`, `LOGIFYX_LOG_FILE`, `LOGIFYX_LOG_DIR` env aliases, for environments where a bare `LOG_LEVEL` already belongs to another tool.
+- CLI: `logifyx --output`, `--log-file`, `--level`, plus a destination summary showing exactly where records would land.
+- `examples/output_modes.py` demonstrating every mode.
+
+### Changed
+
+#### **BREAKING:** `file` removed in favour of `log_file` ([`core.py`](logifyx/core.py), [`config.py`](logifyx/config.py))
+
+The `file` kwarg was a filename resolved inside `log_dir`. `log_file` does the same job and more — it accepts a full path, creates missing directories, and still falls back to `log_dir` when given a bare file name — so the redundant parameter is gone.
+
+```python
+# Before (1.x)
+Logifyx("api", log_dir="logs", file="api.log")
+
+# After (2.0) - either form
+Logifyx("api", log_file="logs/api.log")
+Logifyx("api", log_dir="logs", log_file="api.log")
+```
+
+**Migration:**
+
+| 1.x | 2.0 |
+|-----|-----|
+| `file="api.log"` | `log_file="api.log"` (still resolved inside `log_dir`) |
+| `log_dir="logs", file="api.log"` | `log_file="logs/api.log"` |
+| `config["file"]` | `config["log_file"]` |
+
+Passing `file=` now raises `TypeError`. The `LOG_FILE` env var and YAML key keep their name and now map to `log_file`; the only behavioural difference is that a value carrying a directory part (`LOG_FILE=sub/api.log`) is treated as a path relative to the working directory rather than being nested inside `LOG_DIR`.
+
+#### Log files are written as UTF-8
+
+`ConcurrentRotatingFileHandler` is now created with `encoding="utf-8"` instead of inheriting the system locale encoding. Non-ASCII log messages no longer raise `UnicodeEncodeError` on Windows.
+
+#### Handler teardown is ownership-aware
+
+`reload()` and `reload_from_file()` previously removed and closed **every** handler on the logger, including ones the application had attached. They now only tear down Logifyx-owned handlers.
+
+#### Async listener no longer drops other loggers' handlers
+
+Reconfiguring one logger used to stop the shared `QueueListener` outright, silently disabling remote/Kafka delivery for every other logger. The listener now tracks its handler set and is rebuilt around it, so only the reconfigured logger's async handlers are detached.
+
+### Fixed
+
+#### `logger.exception()` silently dropped the traceback ([`formatter.py`](logifyx/formatter.py))
+
+**Symptom:** the message was logged, the traceback was not — in both text and JSON mode.
+
+```python
+try:
+    raise ValueError("boom")
+except ValueError:
+    log.exception("Something failed")
+
+# BEFORE: 2026-09-20 18:30:12 | ERROR | app:main:4 - Something failed
+# AFTER:  2026-09-20 18:30:12 | ERROR | app:main:4 - Something failed
+#         Traceback (most recent call last):
+#           ...
+#         ValueError: boom
+```
+
+**Root cause:** `LogifyxFormatter.format()` and `PlainLogifyxFormatter.format()` returned `_format_line(...)` directly, bypassing the `record.exc_info` / `record.stack_info` tail that `logging.Formatter.format()` appends. `CompactJsonFormatter.format()` built a fixed dict that never included the traceback either.
+
+**Fix:** both text formatters now append exception and stack text via a shared `_append_traceback()` helper, and the JSON formatter adds `"exception"` and `"stack_info"` keys. `json.dumps` escapes the newlines, so JSON records stay one line each and remain parseable line-by-line.
+
+#### `level=` was ignored when passed to the constructor ([`core.py`](logifyx/core.py))
+
+**Symptom:** `Logifyx("app", level="DEBUG")` emitted nothing below INFO.
+
+```python
+log = Logifyx("app", level="DEBUG")
+log.debug("never appeared")     # dropped
+```
+
+**Root cause:** `level` is positional on `logging.Logger`, so `__init__` passed it to `super().__init__()` but never added it to `_init_params`. `configure()` then overwrote the level with the value from env/YAML/defaults.
+
+**Fix:** an explicitly passed `level` (anything other than `NOTSET`) is now forwarded to `configure()`, where it takes priority as documented.
+
+#### CLI crashed on legacy Windows codepages ([`cli.py`](logifyx/cli.py))
+
+`logifyx --config` raised `UnicodeEncodeError` on terminals using cp1252, because the section banner contains non-ASCII characters. stdout is now reconfigured to UTF-8 with `errors="replace"` where the platform allows it.
+
+### Tests
+
+- New `tests/test_output_modes.py` — 84 tests covering console/file/both/none, reconfiguration, duplicate configuration, user-handler preservation, nested directory creation, multi-threaded writes, exception logging, JSON output, env/YAML config, priority, third-party logger isolation, error handling, and backward compatibility.
+- The pre-existing suite has been brought back in line with the current API. It had been failing since the `mode="dev"/"prod"/"simple"` presets and the colorlog/python-json-logger formatter classes were removed in an earlier release. Full suite: **177 passed**, up from 54 passed / 36 failed.
+
+---
+
 ## [1.1.3](https://github.com/Madhur-Prakash/Logifyx-Py/compare/v1.1.2...v1.1.3) - 2026-07-29
 
 ### Fixed

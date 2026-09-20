@@ -30,18 +30,46 @@ def _format_line(record, datefmt, color=True):
     return f"{dt} | {level} | {location} - {record.getMessage()}"
 
 
+def _append_traceback(formatter, record, line):
+    """
+    Append exception and stack text to a formatted line.
+
+    Mirrors logging.Formatter.format's own tail handling, which the custom
+    format() overrides below would otherwise skip — without this,
+    logger.exception() writes the message and silently drops the traceback.
+    """
+    if record.exc_info and not record.exc_text:
+        record.exc_text = formatter.formatException(record.exc_info)
+
+    if record.exc_text:
+        if line[-1:] != "\n":
+            line += "\n"
+        line += record.exc_text
+
+    if record.stack_info:
+        if line[-1:] != "\n":
+            line += "\n"
+        line += formatter.formatStack(record.stack_info)
+
+    return line
+
+
 class LogifyxFormatter(logging.Formatter):
     """Default formatter: entire line colored by level."""
 
     def format(self, record):
-        return _format_line(record, self.datefmt, color=True)
+        return _append_traceback(
+            self, record, _format_line(record, self.datefmt, color=True)
+        )
 
 
 class PlainLogifyxFormatter(logging.Formatter):
     """Plain formatter: no color (opt-in via color=False)."""
 
     def format(self, record):
-        return _format_line(record, self.datefmt, color=False)
+        return _append_traceback(
+            self, record, _format_line(record, self.datefmt, color=False)
+        )
 
 
 _STANDARD_RECORD_ATTRS = frozenset({
@@ -69,6 +97,16 @@ class CompactJsonFormatter(jsonlogger.JsonFormatter):
         for key, value in record.__dict__.items():
             if key not in _STANDARD_RECORD_ATTRS and not key.startswith("_"):
                 out[key] = value
+
+        # Tracebacks: json.dumps escapes the newlines, so the record stays on
+        # one line and the output remains parseable line-by-line.
+        if record.exc_info and not record.exc_text:
+            record.exc_text = self.formatException(record.exc_info)
+        if record.exc_text:
+            out["exception"] = record.exc_text
+        if record.stack_info:
+            out["stack_info"] = self.formatStack(record.stack_info)
+
         return json.dumps(out, ensure_ascii=False, default=str)
 
 

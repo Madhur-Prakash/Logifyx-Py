@@ -55,63 +55,58 @@ class TestLogifyDirectInstantiation:
         """Test basic Logifyx instantiation with minimal config."""
         log = Logifyx(
             name="test_basic",
-            mode="dev",
             log_dir=temp_log_dir,
-            file="test.log"
+            log_file="test.log"
         )
-        
+
         assert log.name == "test_basic"
         assert len(log.handlers) > 0
-        
+
     def test_instantiation_with_all_params(self, temp_log_dir):
         """Test Logifyx instantiation with all parameters."""
         log = Logifyx(
             name="test_full",
-            mode="prod",
             json_mode=False,
             log_dir=temp_log_dir,
-            file="full_test.log",
+            log_file="full_test.log",
             mask=True,
             color=True,
             backup_count=3,
             max_bytes=1000000
         )
-        
+
         assert log.name == "test_full"
         assert log.config["backup_count"] == 3
         assert log.config["max_bytes"] == 1000000
-        
+
     def test_handlers_prevent_reconfiguration(self, temp_log_dir):
         """Test that existing handlers prevent reconfiguration."""
         log1 = Logifyx(
             name="test_singleton",
-            mode="dev",
             log_dir=temp_log_dir,
-            file="singleton.log"
+            log_file="singleton.log"
         )
-        
+
         handler_count = len(log1.handlers)
-        
+
         # Create another instance with same name
         log2 = Logifyx(
             name="test_singleton",
-            mode="prod",  # Different mode
             log_dir=temp_log_dir,
-            file="singleton.log"
+            log_file="singleton.log"
         )
-        
+
         # Should still have same number of handlers (not doubled)
         assert len(log2.handlers) == handler_count
-        
+
     def test_logging_methods_work(self, temp_log_dir):
         """Test that all logging methods work."""
         log = Logifyx(
             name="test_methods",
-            mode="dev",
             log_dir=temp_log_dir,
-            file="methods.log"
+            log_file="methods.log"
         )
-        
+
         # These should not raise exceptions
         log.debug("Debug message")
         log.info("Info message")
@@ -138,51 +133,54 @@ class TestLogifyDirectInstantiation:
         )
 
         assert log.config["level"] == "WARNING"
-        assert log.config["file"] == "from-env.log"
+        assert log.config["log_file"] == "from-env.log"
         assert log.config["log_dir"] == "from-yaml-dir"
 
 
-class TestLogifyPresets:
-    """Tests for preset modes (dev, prod, simple)."""
+class TestExplicitSettings:
+    """Settings are supplied explicitly per logger, not via preset modes."""
 
-    def test_dev_mode(self, temp_log_dir):
-        """Test dev mode preset."""
+    def test_debug_colored_text(self, temp_log_dir):
+        """Verbose local setup: DEBUG level, color on, plain text."""
         log = Logifyx(
-            name="test_dev",
-            mode="dev",
+            name="test_verbose",
+            level="DEBUG",
+            color=True,
+            json_mode=False,
             log_dir=temp_log_dir,
-            file="dev.log"
+            log_file="verbose.log"
         )
-        
+
         assert log.config["level"] == "DEBUG"
         assert log.config["color"] is True
         assert log.config["json_mode"] is False
-        
-    def test_prod_mode(self, temp_log_dir):
-        """Test prod mode preset."""
+
+    def test_info_plain_text(self, temp_log_dir):
+        """Production-style setup: INFO level, no color."""
         log = Logifyx(
-            name="test_prod",
-            mode="prod",
+            name="test_plain",
+            level="INFO",
+            color=False,
             log_dir=temp_log_dir,
-            file="prod.log"
+            log_file="plain.log"
         )
-        
+
         assert log.config["level"] == "INFO"
         assert log.config["color"] is False
-        # Note: json_mode might be False due to conflict resolution with color
-        
-    def test_simple_mode(self, temp_log_dir):
-        """Test simple mode preset."""
+
+    def test_json_wins_over_color(self, temp_log_dir):
+        """json_mode and color are mutually exclusive."""
         log = Logifyx(
-            name="test_simple",
-            mode="simple",
+            name="test_json_only",
+            level="INFO",
+            color=False,
+            json_mode=True,
             log_dir=temp_log_dir,
-            file="simple.log"
+            log_file="json_only.log"
         )
-        
-        assert log.config["level"] == "INFO"
+
+        assert log.config["json_mode"] is True
         assert log.config["color"] is False
-        assert log.config["json_mode"] is False
 
 
 class TestLogifyReload:
@@ -192,16 +190,15 @@ class TestLogifyReload:
         """Test that reload clears existing handlers."""
         log = Logifyx(
             name="test_reload",
-            mode="dev",
             log_dir=temp_log_dir,
-            file="reload.log"
+            log_file="reload.log"
         )
-        
+
         initial_handlers = len(log.handlers)
         assert initial_handlers > 0
-        
+
         log.reload()
-        
+
         # Should have same number of handlers after reload
         assert len(log.handlers) == initial_handlers
 
@@ -214,17 +211,17 @@ class TestSentinelPattern:
         assert _sentinel is not None
         assert _sentinel is not True
         assert _sentinel is not False
-        
+
     def test_no_params_means_no_configure(self):
         """Test that zero-config instantiation still configures the logger."""
         log = Logifyx(name="test_no_config")
-        
+
         assert hasattr(log, "config")
         assert log.handlers
 
     def test_zero_config_logs_info(self, temp_log_dir):
         """Test that INFO logs are emitted without passing color or other kwargs."""
-        log = Logifyx(name="test_zero_config", log_dir=temp_log_dir, file="zero.log")
+        log = Logifyx(name="test_zero_config", log_dir=temp_log_dir, log_file="zero.log")
 
         log.info("Zero-config info message")
 
@@ -251,7 +248,7 @@ class TestSentinelPattern:
             handler.flush()
 
         expected_file = os.path.join(temp_log_dir, "billing-service.log")
-        assert log.config["file"] == "billing-service.log"
+        assert log.config["log_file"] == "billing-service.log"
         assert os.path.exists(expected_file)
 
         for handler in log.handlers[:]:
@@ -267,38 +264,36 @@ class TestFileLogging:
         log_file = "created.log"
         log = Logifyx(
             name="test_file_create",
-            mode="dev",
             log_dir=temp_log_dir,
-            file=log_file
+            log_file=log_file
         )
-        
+
         log.info("Test message")
-        
+
         # Check file exists
         full_path = os.path.join(temp_log_dir, log_file)
         assert os.path.exists(full_path)
-        
+
     def test_log_content_written(self, temp_log_dir):
         """Test that log content is written to file."""
         log_file = "content.log"
         log = Logifyx(
             name="test_content",
-            mode="dev",
             log_dir=temp_log_dir,
-            file=log_file
+            log_file=log_file
         )
-        
+
         test_message = "This is a test message 12345"
         log.info(test_message)
-        
+
         # Force flush
         for handler in log.handlers:
             handler.flush()
-        
+
         full_path = os.path.join(temp_log_dir, log_file)
         with open(full_path, 'r') as f:
             content = f.read()
-            
+
         assert test_message in content
 
 
@@ -312,9 +307,9 @@ class TestConflictResolution:
             json_mode=True,
             color=True,
             log_dir=temp_log_dir,
-            file="conflict.log"
+            log_file="conflict.log"
         )
-        
+
         # json_mode should be False due to conflict resolution
         assert log.config["json_mode"] is False
 

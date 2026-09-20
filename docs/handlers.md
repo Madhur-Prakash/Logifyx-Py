@@ -10,18 +10,51 @@ Logifyx writes logs to multiple destinations simultaneously. Handlers are create
 
 ## Overview
 
-| Handler | Always on? | Enabled when |
-|---------|-----------|--------------|
-| Console | Yes | Always |
-| File | Yes | Always |
-| Remote HTTP | No | `remote_url` is set |
-| Kafka | No | `kafka_servers` is set |
+| Handler | Enabled when | Controlled by |
+|---------|--------------|---------------|
+| Console | `output` is `console` or `both` *(default)* | `output` |
+| File | `output` is `file` or `both` *(default)* | `output` |
+| Remote HTTP | `remote_url` is set | `remote_url` |
+| Kafka | `kafka_servers` is set | `kafka_servers` |
+
+### Output modes
+
+`output` decides which of the two local destinations exist:
+
+| `output` | Console | File |
+|----------|---------|------|
+| `"both"` *(default)* | yes | yes |
+| `"file"` | no | yes |
+| `"console"` | yes | no |
+| `"none"` | no | no |
+
+```python
+from logifyx import configure_logging
+
+configure_logging(output="file", log_file="logs/app.log")
+```
+
+In `file` mode Logifyx writes **nothing** to `stdout` or `stderr`. When no handler at all
+would remain (`output="none"` with no remote/Kafka), Logifyx attaches a `NullHandler`, so
+Python's `lastResort` fallback — which prints WARNING and above to stderr — never fires.
+
+### Handler ownership
+
+Every handler Logifyx creates is stamped as Logifyx-managed. Reconfiguration
+(`configure_logging()`, `reload()`, `set_output()`) only ever replaces stamped handlers,
+so handlers your application or a third-party library attached are never removed or
+reformatted.
+
+Ownership is tracked explicitly rather than by `isinstance` checks, because
+`logging.FileHandler` subclasses `logging.StreamHandler` — an isinstance-based sweep for
+"console handlers" would silently take the log file down with it.
 
 ---
 
 ## Console Handler
 
-Writes every log record to stdout.
+Writes every log record to the terminal via `stderr`, as the standard library's
+`StreamHandler` does. Disabled when `output` is `file` or `none`.
 
 ### Log format
 
@@ -34,7 +67,7 @@ Writes every log record to stdout.
 - `name:function:line` — blue
 - Message — color-coded by severity
 
-Color is on by default (`LOG_COLOR=true`). Pass `color=False` to get plain text — useful when you pipe stdout to a file or another tool. All color and format settings are listed in the [Configuration Guide](configuration.md#console-output).
+Color is on by default (`LOG_COLOR=true`). Pass `color=False` to get plain text — useful when you pipe output to a file or another tool. Color codes are never written to the log file, regardless of this setting. All color and format settings are listed in the [Configuration Guide](configuration.md#console-output).
 
 ### Color map
 
@@ -60,21 +93,34 @@ When `json_mode=True` (or `LOG_JSON=true`), each record is a single-line JSON ob
 
 ## File Handler
 
-Writes logs to a rotating file. Always enabled alongside the console handler.
+Writes logs to a rotating file. Enabled when `output` is `file` or `both` (the default).
 
-- Multi-process safe (`ConcurrentRotatingFileHandler`)
-- Log directory is created automatically if it does not exist
-- Plain text format (no ANSI color codes)
+- Multi-process **and** multi-thread safe (`ConcurrentRotatingFileHandler` takes an
+  inter-process lock around every write)
+- Log directory is created automatically, including nested parents
+- Always UTF-8, regardless of system locale
+- Plain text or JSON — never ANSI color codes
 
 ```python
 log = Logifyx(
     name="myapp",
-    file="myapp.log",       # default: <name>.log
-    log_dir="logs",          # default: logs/
-    max_bytes=10_000_000,    # rotate when file hits 10 MB
-    backup_count=5,          # keep 5 old files
+    output="file",              # file only - no terminal output
+    log_file="logs/myapp.log",  # default: logs/<name>.log
+    max_bytes=10_000_000,       # rotate when file hits 10 MB
+    backup_count=5,             # keep 5 old files
 )
 ```
+
+`log_file` takes either a path or a bare file name:
+
+| Configuration | Resulting path |
+|---------------|----------------|
+| `log_file="logs/myapp.log"` | `logs/myapp.log` |
+| `log_dir="/var/log/app"`, `log_file="api.log"` | `/var/log/app/api.log` |
+| neither set | `logs/<logger name>.log` |
+
+If the directory or file cannot be created, Logifyx raises `LogifyxFileError` (also a
+`RuntimeError`) at configuration time rather than silently dropping records.
 
 ### Rotation behaviour
 

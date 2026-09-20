@@ -26,7 +26,9 @@
 
 - [Features](#features)
 - [Installation](#installation)
+- [Upgrading to 2.0](#upgrading-to-20)
 - [Quick Start](#quick-start)
+- [Output Modes](#output-modes)
 - [Configuration](#configuration)
 - [Handlers](#handlers)
     - [Console Handler](#console-handler)
@@ -49,6 +51,8 @@
 
 | Feature | Description |
 |---------|-------------|
+| **Configurable Output** | Send logs to the console, a file, both, or nowhere |
+| **File-Only Logging** | `output="file"` writes to disk with zero terminal output |
 | **Colored Console Output** | Beautiful, readable logs with color-coded levels |
 | **Rotating File Logs** | Auto-rotating log files with size limits and backup |
 | **Remote HTTP Streaming** | Send logs to any HTTP endpoint in real-time |
@@ -89,6 +93,36 @@ pip install logifyx[kafka]
 
 ---
 
+## Upgrading to 2.0
+
+2.0 adds [output modes](#output-modes) and removes one redundant parameter.
+
+### `file` → `log_file`
+
+`file` was a filename resolved inside `log_dir`. `log_file` does the same job and more —
+it takes a full path, creates missing directories, and still falls back to `log_dir` when
+given a bare file name. Passing `file=` now raises `TypeError`.
+
+| 1.x | 2.0 |
+|-----|-----|
+| `Logifyx("api", file="api.log")` | `Logifyx("api", log_file="api.log")` |
+| `Logifyx("api", log_dir="logs", file="api.log")` | `Logifyx("api", log_file="logs/api.log")` |
+| `log.config["file"]` | `log.config["log_file"]` |
+
+The `LOG_FILE` env var and YAML key keep their name and now map to `log_file`. The only
+behavioural difference: a value carrying a directory part (`LOG_FILE=sub/api.log`) is now
+a path relative to the working directory rather than being nested inside `LOG_DIR`.
+
+### Everything else is backward compatible
+
+`Logifyx()`, `get_logify_logger()`, `setup_logify()`, `ContextLoggerAdapter`, `flush()`,
+`shutdown()`, `reload()`, masking, JSON mode, rotation, remote HTTP and Kafka all behave
+as before. Two long-standing bugs were fixed along the way — `logger.exception()` now
+writes the traceback, and `Logifyx("app", level="DEBUG")` now honours the level. See the
+[CHANGELOG](CHANGELOG.md) for details.
+
+---
+
 ## Quick Start
 
 ### Basic Usage (Zero Config)
@@ -103,7 +137,9 @@ log.warning("This is a warning")
 log.error("Something went wrong")
 ```
 
-If you do not pass `file=...`, Logifyx writes to `<name>.log` by default, so the example above creates `myapp.log`.
+By default Logifyx writes to **both** the console and a rotating log file. If you do not pass `log_file=...`, the file is named after the logger, so the example above creates `logs/myapp.log`.
+
+To write to a file and keep the terminal completely silent, see [Output Modes](#output-modes).
 
 ### Full Configuration
 
@@ -112,8 +148,7 @@ from logifyx import Logifyx
 
 log = Logifyx(
     name="auth-service",
-    file="auth.log",
-    log_dir="logs",
+    log_file="logs/auth.log",
     color=True,
     mask=True,  # Auto-mask sensitive data
     remote_url="http://localhost:5000/logs",
@@ -135,8 +170,8 @@ from logifyx import setup_logify, get_logify_logger
 setup_logify()
 
 # Now use get_logify_logger anywhere in your app
-log = get_logify_logger("auth", file="auth.log")
-api_log = get_logify_logger("api", file="api.log")
+log = get_logify_logger("auth", log_file="logs/auth.log")
+api_log = get_logify_logger("api", log_file="logs/api.log")
 ```
 
 ### Context Injection (Request Tracking)
@@ -174,12 +209,192 @@ shutdown()
 
 ---
 
+## Output Modes
+
+> **Upgrading from 1.x?** `output` is new and defaults to `both`, so your logs keep going
+> to the console and a file. One breaking change: the `file` kwarg was removed in favour
+> of `log_file` — see [Upgrading to 2.0](#upgrading-to-20).
+
+Logifyx sends every log record to a **destination**. The `output` setting decides which
+destinations exist:
+
+| `output` | Console | Log file | Use it when |
+|----------|---------|----------|-------------|
+| `"both"` *(default)* | ✅ | ✅ | Local development — see logs and keep them |
+| `"file"` | ❌ | ✅ | Daemons, cron jobs, servers — **no terminal output at all** |
+| `"console"` | ✅ | ❌ | Containers where a log collector reads stdout/stderr |
+| `"none"` | ❌ | ❌ | Tests, or when your app installs its own handlers |
+
+`output` controls the console and file destinations only. Remote HTTP and Kafka delivery
+stay governed by `remote_url` / `kafka_servers`, so you can stream to Kafka while the
+terminal stays quiet.
+
+### File-only logging (no terminal output)
+
+```python
+from logifyx import configure_logging, get_logify_logger
+
+configure_logging(
+    level="INFO",
+    output="file",
+    log_file="logs/app.log"
+)
+
+logger = get_logify_logger("my_app")
+
+logger.info("Application started")
+logger.error("Something failed")
+```
+
+`logs/app.log`:
+
+```text
+2026-09-20 18:30:12 | INFO     | my_app:main:14 - Application started
+2026-09-20 18:30:12 | ERROR    | my_app:main:15 - Something failed
+```
+
+Terminal:
+
+```text
+<no output>
+```
+
+**Nothing** is written to `stdout` or `stderr` in this mode — not by Logifyx, and not by
+Python's `lastResort` fallback. The `logs/` directory is created for you, including
+nested paths such as `logs/2026/09/app.log`.
+
+### Console only
+
+```python
+configure_logging(output="console")
+```
+
+No log file is opened at all — Logifyx will not create `logs/` or touch the disk.
+
+### Both (the default)
+
+```python
+configure_logging(output="both", log_file="logs/app.log")
+```
+
+`both` is the default, so log destinations behave exactly as they did in 1.x unless you
+opt into another mode.
+
+### Disabling Logifyx output
+
+```python
+configure_logging(output="none")
+```
+
+Logifyx attaches a `NullHandler` and emits nothing anywhere. Useful in libraries and test
+suites.
+
+### Friendlier spellings
+
+If you prefer to spell the intent out, these are accepted everywhere `output` is:
+
+| You write | Resolves to |
+|-----------|-------------|
+| `"console_only"` | `"console"` |
+| `"file_only"` | `"file"` |
+| `"console_and_file"` | `"both"` |
+| `"off"`, `"disabled"` | `"none"` |
+
+Values are case-insensitive. Anything unrecognised raises `LogifyxConfigurationError`
+listing the valid modes.
+
+### Switching modes at runtime
+
+Calling `configure_logging()` again **replaces** Logifyx's handlers rather than adding to
+them, so the console handler is genuinely removed — not just muted:
+
+```python
+configure_logging(output="both", log_file="logs/app.log")
+logger.info("test 1")        # terminal + logs/app.log
+
+configure_logging(output="file", log_file="logs/app.log")
+logger.info("test 2")        # logs/app.log only
+```
+
+Calling it repeatedly with the same settings is safe and never duplicates log lines:
+
+```python
+configure_logging(output="file")
+configure_logging(output="file")
+configure_logging(output="file")
+
+logger.info("hello")         # appears exactly once in the file
+```
+
+To switch a single logger without touching the rest of the application, use
+`set_output()`:
+
+```python
+log = get_logify_logger("audit")
+log.set_output("file", log_file="logs/audit.log")
+log.output                   # "file"
+```
+
+### Your own handlers are never touched
+
+Logifyx stamps every handler it creates. Reconfiguration only ever replaces stamped
+handlers, so anything you attached yourself survives:
+
+```python
+import logging
+from logifyx import configure_logging, get_logify_logger
+
+log = get_logify_logger("my_app")
+log.addHandler(logging.handlers.SysLogHandler())   # yours
+
+configure_logging(output="file", log_file="logs/app.log")
+
+# Your SysLogHandler is still attached, with its own formatter and level.
+```
+
+The same applies in reverse: Logifyx loggers set `propagate = False` and never attach
+handlers to the root logger, so configuring Logifyx cannot silence or duplicate logging
+from `urllib3`, `requests`, `httpx`, `uvicorn`, `fastapi`, or anything else.
+
+### Environment variables and YAML
+
+```bash
+export LOG_OUTPUT=file
+export LOG_FILE=logs/app.log
+export LOG_LEVEL=INFO
+```
+
+```yaml
+# logifyx.yaml
+LOG_OUTPUT: file
+LOG_FILE: logs/app.log
+LOG_LEVEL: INFO
+```
+
+The `LOGIFYX_`-prefixed spellings `LOGIFYX_OUTPUT`, `LOGIFYX_LOG_FILE`, `LOGIFYX_LEVEL`
+and `LOGIFYX_LOG_DIR` are accepted as aliases, for environments where a bare `LOG_LEVEL`
+already belongs to another tool.
+
+Explicit Python configuration always wins over the environment — see
+[Configuration](#configuration) for the full priority chain.
+
+---
+
 ## Configuration
 
 Logifyx supports multiple configuration sources with clear priority:
 
 ```
-Python Code Arguments > Environment Variables > logifyx.yaml > Defaults
+Per-logger kwargs > configure_logging() > Environment Variables > logifyx.yaml > Defaults
+```
+
+`configure_logging()` sets process-wide defaults; kwargs passed to a specific logger are
+more specific and therefore win:
+
+```python
+configure_logging(output="file", log_file="logs/app.log")
+
+audit = Logifyx("audit", output="console")   # keeps its console output
 ```
 
 ### 1. Python Code (Highest Priority)
@@ -190,10 +405,22 @@ from logifyx import Logifyx
 log = Logifyx(
     name="myapp",
     level="DEBUG",
+    output="file",
+    log_file="logs/myapp.log",
     color=True,
-    file="myapp.log",
-    log_dir="logs",
     mask=True
+)
+```
+
+Or set it once for the whole process:
+
+```python
+from logifyx import configure_logging
+
+configure_logging(
+    level="DEBUG",
+    output="file",
+    log_file="logs/myapp.log"
 )
 ```
 
@@ -204,20 +431,23 @@ Set environment variables with the `LOG_` prefix:
 ```bash
 # Linux/macOS
 export LOG_LEVEL=DEBUG
-export LOG_FILE=app.log
+export LOG_OUTPUT=file
+export LOG_FILE=logs/app.log
 export LOG_COLOR=True
 export LOG_KAFKA_SERVERS=localhost:9092
 
 # Windows PowerShell
 $env:LOG_LEVEL = "DEBUG"
-$env:LOG_FILE = "app.log"
+$env:LOG_OUTPUT = "file"
+$env:LOG_FILE = "logs/app.log"
 ```
 
 Or use a `.env` file (loaded automatically via `python-dotenv`):
 
 ```env
 LOG_LEVEL=DEBUG
-LOG_FILE=app.log
+LOG_OUTPUT=file
+LOG_FILE=logs/app.log
 LOG_DIR=logs
 LOG_COLOR=True
 LOG_MASK=True
@@ -236,8 +466,9 @@ Here's a complete `.env` file with all available options:
 LOG_LEVEL=INFO                          # DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 # ---- Output Settings ----
-LOG_FILE=app.log                        # Log file name
-LOG_DIR=logs                            # Directory for log files
+LOG_OUTPUT=both                         # console, file, both (default), none
+LOG_FILE=logs/app.log                   # Log file path (directories auto-created)
+LOG_DIR=logs                            # Directory used when LOG_FILE has no dir part
 LOG_COLOR=True                          # Enable colored console output
 LOG_JSON=False                          # Enable JSON formatted logs
 LOG_MASK=True                           # Mask sensitive data (passwords, tokens, etc.)
@@ -268,7 +499,8 @@ Create a `logifyx.yaml` file in your project root:
 ```yaml
 # Logging Settings
 LOG_LEVEL: DEBUG
-LOG_FILE: app.log
+LOG_OUTPUT: file
+LOG_FILE: logs/app.log
 LOG_DIR: logs
 LOG_COLOR: True
 LOG_JSON: False
@@ -306,8 +538,9 @@ LOG_SCHEMA_COMPATIBILITY: BACKWARD
 
 | Option | Env Variable | YAML Key | Default | Description |
 |--------|--------------|----------|---------|-------------|
-| `file` | `LOG_FILE` | `LOG_FILE` | `<name>.log` | Log file name. Defaults to the logger name (e.g. `myapp.log`) if not set anywhere. |
-| `log_dir` | `LOG_DIR` | `LOG_DIR` | `"logs"` | Directory for log files |
+| `output` | `LOG_OUTPUT` | `LOG_OUTPUT` | `"both"` | Where logs go: `console`, `file`, `both`, or `none`. `file` produces no terminal output. Aliases: `console_only`, `file_only`, `console_and_file`, `off`. |
+| `log_file` | `LOG_FILE` | `LOG_FILE` | `<name>.log` | Log file path, e.g. `logs/app.log`. Missing directories are created automatically. A bare file name is placed inside `log_dir`. Defaults to the logger name. |
+| `log_dir` | `LOG_DIR` | `LOG_DIR` | `"logs"` | Directory used when `log_file` has no directory part |
 | `color` | `LOG_COLOR` | `LOG_COLOR` | `True` | Colorize console output. Python: `True`/`False` only. Env/YAML: `true`/`false` only. |
 | `json_mode` | `LOG_JSON` | `LOG_JSON` | `False` | Emit each line as JSON. Mutually exclusive with `color` — `json_mode` wins if both are set. |
 | `mask` | `LOG_MASK` | `LOG_MASK` | `True` | Redact passwords, tokens, and secrets in all output. |
@@ -351,18 +584,24 @@ LOG_SCHEMA_COMPATIBILITY: BACKWARD
 
 ## Handlers
 
-Logifyx writes logs to multiple destinations simultaneously:
+Logifyx writes logs to several destinations simultaneously. Which ones exist depends on
+your configuration — you never register handlers manually.
 
-| Handler | Description | Auto-enabled |
+| Handler | Description | Enabled when |
 |---------|-------------|--------------|
-| **Console** | Colored stdout output | ✅ Always |
-| **File** | Rotating file with backups | ✅ Always |
-| **Remote HTTP** | POST to HTTP endpoint | When `remote_url` set |
-| **Kafka** | Stream to Kafka topic | When `kafka_servers` set |
+| **Console** | Colored terminal output | `output` is `console` or `both` *(default)* |
+| **File** | Rotating file with backups | `output` is `file` or `both` *(default)* |
+| **Remote HTTP** | POST to HTTP endpoint | `remote_url` is set |
+| **Kafka** | Stream to Kafka topic | `kafka_servers` is set |
+
+See [Output Modes](#output-modes) for how to turn the console or file destination off.
 
 ### Console Handler
 
-**Always enabled.** Writes logs to stdout with optional color coding.
+**Enabled by default** (`output="both"`). Writes to the terminal with optional color coding.
+Set `output="file"` or `output="none"` to remove it entirely.
+
+Like the standard library's `StreamHandler`, records are written to `stderr`.
 
 #### Color Mapping
 
@@ -388,23 +627,34 @@ log = Logifyx(name="myapp", color=True)
 
 ### File Handler
 
-**Always enabled.** Writes logs to a rotating file with automatic backup management.
+**Enabled by default** (`output="both"`). Writes to a rotating file with automatic backup
+management. Set `output="console"` or `output="none"` to skip opening a file at all.
 
 #### Features
 
 - **Rotating files**: Automatically rotates when file reaches size limit
 - **Backup management**: Keeps N backup files, deletes oldest
-- **Concurrent-safe**: Uses `ConcurrentRotatingFileHandler` for multi-process safety
-- **Auto-creates directory**: Creates log directory if it doesn't exist
+- **Concurrent-safe**: Uses `ConcurrentRotatingFileHandler`, which takes an inter-process
+  lock around every write — safe across threads *and* processes
+- **Auto-creates directories**: Creates the log directory, including nested parents
+- **UTF-8**: Files are always written as UTF-8, regardless of system locale
 
 ```python
 log = Logifyx(
     name="myapp",
-    file="myapp.log",       # Log file name
-    log_dir="logs",         # Directory for logs
-    max_bytes=10_000_000,   # 10MB max file size
-    backup_count=5          # Keep 5 backup files
+    output="file",              # file only - no terminal output
+    log_file="logs/myapp.log",  # path; directories created as needed
+    max_bytes=10_000_000,       # 10MB max file size
+    backup_count=5              # Keep 5 backup files
 )
+```
+
+`log_file` accepts either a full path or a bare file name:
+
+```python
+log_file="logs/myapp.log"                  # -> logs/myapp.log
+log_dir="/var/log/myapp", log_file="a.log" # -> /var/log/myapp/a.log
+# nothing set                              # -> logs/<logger name>.log
 ```
 
 #### File Structure
@@ -764,8 +1014,9 @@ Logifyx Configuration (logifyx.yaml: found):
     "color": true,
     "max_bytes": 10000000,
     "backup_count": 5,
+    "output": "both",
     "log_dir": "logs",
-    "file": "app.log",
+    "log_file": "logs/app.log",
     "json_mode": false,
     "mask": true,
     "remote_url": null,
@@ -778,6 +1029,29 @@ Logifyx Configuration (logifyx.yaml: found):
     "remote_headers": {"Content-Type": "application/json"}
 }
 ```
+
+#### `logifyx --output <mode>`
+
+Preview the resolved configuration with an output mode applied, and see exactly where log
+records would land:
+
+```bash
+logifyx --output file
+logifyx --output both
+logifyx --output file --log-file logs/app.log --level DEBUG
+```
+
+**Output (tail):**
+
+```
+Destinations:
+
+   console: disabled - nothing is written to stdout/stderr
+   file:    /srv/myapp/logs/app.log
+```
+
+`--output`, `--log-file`, and `--level` imply `--config`, so you do not have to pass both.
+They only preview a configuration — they do not write to `logifyx.yaml`.
 
 #### `logifyx --help`
 
@@ -811,15 +1085,16 @@ from logifyx import Logifyx
 
 log = Logifyx(
     name: str = "app",                    # Logger name
-    level: int = logging.NOTSET,          # Log level
+    level: int | str = logging.NOTSET,    # Log level
+    output: str = None,                   # console | file | both | none
+    log_file: str = None,                 # Log file path, e.g. "logs/app.log"
+    log_dir: str = None,                  # Directory when log_file has no dir part
     json_mode: bool = None,               # JSON output
     remote_url: str = None,               # HTTP endpoint
-    log_dir: str = None,                  # Log directory
     mask: bool = None,                    # Mask sensitive data (default: True)
     color: bool = None,                   # Colored output
     backup_count: int = None,             # Backup files count
     max_bytes: int = None,                # Max file size
-    file: str = None,                     # Log filename
     kafka_servers: str = None,            # Kafka bootstrap servers
     kafka_topic: str = None,              # Kafka topic
     schema_registry_url: str = None,      # Schema Registry URL
@@ -834,9 +1109,100 @@ log = Logifyx(
 
 | Method | Description |
 |--------|-------------|
-| `configure(**kwargs)` | Configure the logger with all options |
+| `configure(**kwargs)` | Configure the logger with all options. Pass `replace=True` to rebuild existing Logifyx handlers |
+| `set_output(output, log_file=None, log_dir=None)` | Switch this logger's destination at runtime |
 | `reload()` | Reload logger configuration and handlers |
 | `reload_from_file()` | Reload configuration from `logifyx.yaml` |
+
+| Property | Description |
+|----------|-------------|
+| `output` | The resolved output mode: `"console"`, `"file"`, `"both"`, or `"none"` |
+
+`reload()`, `reload_from_file()`, `set_output()` and `configure(replace=True)` only replace
+handlers Logifyx created. Handlers your application attached are left untouched.
+
+### `configure_logging()` Function
+
+Configure Logifyx for the whole process. The recommended entry point — call once at startup.
+
+```python
+from logifyx import configure_logging
+
+configure_logging(
+    level: int | str = None,       # Minimum level
+    output: str = None,            # console | file | both | none
+    log_file: str = None,          # e.g. "logs/app.log"; dirs created automatically
+    log_dir: str = None,           # Directory when log_file has no dir part
+    color: bool = None,            # Colorize console output
+    json_mode: bool = None,        # Single-line JSON records
+    mask: bool = None,             # Redact passwords/tokens/secrets
+    max_bytes: int = None,         # Rotate at this size
+    backup_count: int = None,      # Rotated backups to keep
+    remote_url: str = None,        # HTTP endpoint (async)
+    remote_timeout: int = None,
+    max_remote_retries: int = None,
+    remote_headers: dict = None,
+    kafka_servers: str = None,
+    kafka_topic: str = None,
+    schema_registry_url: str = None,
+    schema_compatibility: str = None,
+    config_dir: str = None,
+    env_file: str = None,
+    yaml_file: str = None,
+    reset: bool = False            # Discard previous defaults instead of merging
+)
+```
+
+It registers Logifyx as the logger class (so `setup_logify()` is not needed separately),
+stores the settings as process-wide defaults, and re-applies them to every Logifyx logger
+that already exists.
+
+**Safe to call repeatedly** — each call replaces Logifyx's handlers rather than adding to
+them, so log lines are never duplicated.
+
+**Raises:**
+
+| Exception | When |
+|-----------|------|
+| `TypeError` | A value has the wrong type |
+| `LogifyxConfigurationError` | A value is out of range, or `output` is not a valid mode. Also a `ValueError`. |
+| `LogifyxFileError` | The log file or its directory cannot be created. Also a `RuntimeError`. |
+
+### `reset_logging()` Function
+
+Clear the process-wide defaults and detach every Logifyx-owned handler. Handlers your
+application attached are left in place. Mainly useful in test suites.
+
+```python
+from logifyx import reset_logging
+
+reset_logging()
+```
+
+### `get_global_config()` Function
+
+Return a copy of the process-wide defaults set by `configure_logging()`.
+
+```python
+from logifyx import get_global_config
+
+get_global_config()   # {"output": "file", "log_file": "logs/app.log"}
+```
+
+### Exceptions
+
+```python
+from logifyx import LogifyxError, LogifyxConfigurationError, LogifyxFileError
+```
+
+| Exception | Base classes | Raised for |
+|-----------|--------------|------------|
+| `LogifyxError` | `Exception` | Base class for every Logifyx error |
+| `LogifyxConfigurationError` | `LogifyxError`, `ValueError` | Invalid configuration values |
+| `LogifyxFileError` | `LogifyxError`, `RuntimeError` | Log file/directory cannot be created |
+
+Each subclass also inherits the builtin exception Logifyx raised before this hierarchy
+existed, so existing `except ValueError` / `except RuntimeError` code keeps working.
 
 ### `ContextLoggerAdapter` Class
 
@@ -902,6 +1268,15 @@ shutdown()  # Call before application exits
 
 ## Examples
 
+### Output Modes Demo
+
+A runnable walkthrough of every mode lives in
+[`examples/output_modes.py`](examples/output_modes.py):
+
+```bash
+python examples/output_modes.py
+```
+
 ### Basic Demo
 
 ```python
@@ -910,7 +1285,7 @@ from logifyx import Logifyx, ContextLoggerAdapter, get_logify_logger, setup_logi
 # Direct instantiation
 log = Logifyx(
     name="auth",
-    file="auth.log",
+    log_file="logs/auth.log",
     color=True,
     mask=True
 )
@@ -921,7 +1296,7 @@ log.error("Login failed")
 
 # Global registration
 setup_logify()
-api_log = get_logify_logger("api", file="api.log")
+api_log = get_logify_logger("api", log_file="logs/api.log")
 api_log.info("API endpoint hit")
 
 # Context injection
@@ -968,12 +1343,13 @@ log.info("Application finished")
 ```
 logifyx/
 ├── __init__.py      # Package exports
-├── core.py          # Main Logifyx class
-├── config.py        # Configuration loading
+├── core.py          # Logifyx class, configure_logging(), logger registry
+├── config.py        # Configuration loading (env / .env / YAML)
+├── output.py        # Output modes + handler ownership
+├── exceptions.py    # LogifyxError hierarchy
 ├── handler.py       # Handler factory
 ├── formatter.py     # Log formatters
 ├── filters.py       # Sensitive data masking
-├── presets.py       # (reserved)
 ├── remote.py        # HTTP remote handler
 ├── kafka.py         # Kafka + Avro handler
 └── cli.py           # CLI tool

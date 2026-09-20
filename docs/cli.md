@@ -54,6 +54,38 @@ Logifyx Configuration (logifyx.yaml: found):
 }
 ```
 
+### `logifyx --output <mode>`
+
+Preview the resolved configuration with an output mode applied, and print exactly where
+records would land:
+
+```bash
+logifyx --output file
+logifyx --output both
+logifyx --output console
+logifyx --output none
+```
+
+Ends with a destination summary:
+
+```
+Destinations:
+
+   console: disabled - nothing is written to stdout/stderr
+   file:    /srv/myapp/logs/app.log
+```
+
+### `logifyx --log-file <path>` and `--level <level>`
+
+Preview the resolved config with a different log file or level applied:
+
+```bash
+logifyx --output file --log-file logs/app.log --level DEBUG
+```
+
+`--output`, `--log-file`, and `--level` imply `--config`, so you do not need to pass both.
+They only preview a configuration — nothing is written to `logifyx.yaml` or `.env`.
+
 ### `logifyx --config-dir <path>`
 
 Read `.env` and `logifyx.yaml` from a specific directory instead of the current working directory:
@@ -88,7 +120,8 @@ Every setting that can be in `.env` or `logifyx.yaml`:
 | `LOG_COLOR` | `true` | Color console output by level. Set `false` for plain text. |
 | `LOG_JSON` | `false` | Emit JSON lines instead of pipe-separated text. Incompatible with `LOG_COLOR`. |
 | `LOG_MASK` | `true` | Auto-mask `password=`, `token=`, `secret=`, `api_key=` values. |
-| `LOG_FILE` | `<name>.log` | Log file name inside `LOG_DIR`. |
+| `LOG_OUTPUT` | `both` | Destination: `console`, `file`, `both`, or `none`. |
+| `LOG_FILE` | `<name>.log` | Log file path. A bare name goes inside `LOG_DIR`. |
 | `LOG_DIR` | `logs` | Directory for log files. Created if it does not exist. |
 | `LOG_MAX_BYTES` | `10000000` | Rotate the log file after it reaches this many bytes (10 MB). |
 | `LOG_BACKUP_COUNT` | `5` | Number of rotated backup files to keep. |

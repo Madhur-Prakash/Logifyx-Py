@@ -22,6 +22,15 @@ If the same key appears in both system env vars and `.env`, the system env var w
 
 Every setting has a corresponding env var with a `LOG_` prefix. All can be set in `.env`, `logifyx.yaml`, or as real shell env vars.
 
+A few also accept a `LOGIFYX_`-prefixed alias, for environments where a bare `LOG_LEVEL` already belongs to another tool. The canonical `LOG_*` name is checked first:
+
+| Canonical | Alias |
+|-----------|-------|
+| `LOG_LEVEL` | `LOGIFYX_LEVEL` |
+| `LOG_OUTPUT` | `LOGIFYX_OUTPUT` |
+| `LOG_FILE` | `LOGIFYX_LOG_FILE` |
+| `LOG_DIR` | `LOGIFYX_LOG_DIR` |
+
 ### Core
 
 | Env Var | Python kwarg | Default | Accepted values | Description |
@@ -29,7 +38,17 @@ Every setting has a corresponding env var with a `LOG_` prefix. All can be set i
 | `LOG_LEVEL` | `level` | `"INFO"` | `DEBUG` `INFO` `WARNING` `ERROR` `CRITICAL` `NOTSET` | Minimum level to emit. Logs below this level are silently dropped. Invalid values raise `ValueError`. |
 | `LOG_MASK` | `mask` | `true` | `true` / `false` only | Auto-mask sensitive values like `password=`, `token=`, `secret=`, `api_key=` in every handler. |
 
+### Output Destination
+
+| Env Var | Python kwarg | Default | Accepted values | Description |
+|---------|-------------|---------|-----------------|-------------|
+| `LOG_OUTPUT` | `output` | `"both"` | `console` `file` `both` `none` | Which destinations Logifyx writes to. `file` writes to the log file and produces **no terminal output at all**. `console` opens no log file. `none` disables both. Aliases: `console_only`, `file_only`, `console_and_file`, `off`, `disabled`. Case-insensitive; invalid values raise `LogifyxConfigurationError`. |
+
+`LOG_OUTPUT` governs the console and file destinations only — remote HTTP and Kafka delivery remain controlled by `LOG_REMOTE` / `LOG_KAFKA_SERVERS`.
+
 ### Console Output
+
+These apply when `LOG_OUTPUT` is `console` or `both`.
 
 | Env Var | Python kwarg | Default | Accepted values | Description |
 |---------|-------------|---------|-----------------|-------------|
@@ -38,10 +57,12 @@ Every setting has a corresponding env var with a `LOG_` prefix. All can be set i
 
 ### File Output
 
+These apply when `LOG_OUTPUT` is `file` or `both`.
+
 | Env Var | Python kwarg | Default | Constraint | Description |
 |---------|-------------|---------|------------|-------------|
-| `LOG_FILE` | `file` | `<logger-name>.log` | str | Log file name inside `LOG_DIR`. Defaults to the logger name (e.g. `myapp.log`). |
-| `LOG_DIR` | `log_dir` | `"logs"` | str | Directory where log files are written. Created automatically if it does not exist. |
+| `LOG_FILE` | `log_file` | `<logger-name>.log` | str | Log file path, e.g. `logs/app.log`. Missing directories — including nested ones — are created automatically. A bare file name is placed inside `LOG_DIR`. Defaults to the logger name. |
+| `LOG_DIR` | `log_dir` | `"logs"` | str | Directory used when `LOG_FILE` has no directory part. Created automatically if it does not exist. |
 | `LOG_MAX_BYTES` | `max_bytes` | `10000000` (10 MB) | int, >= 1 | Rotate the file when it reaches this size in bytes. |
 | `LOG_BACKUP_COUNT` | `backup_count` | `5` | int, >= 0 | How many rotated backup files to keep (`app.log.1` … `app.log.N`). Set to `0` to keep none. |
 
@@ -110,6 +131,8 @@ Logifyx validates every value at configuration time and raises immediately on ba
 | `kafka_servers` | `str` or `list[str]` | `kafka_servers=9092` → `TypeError` |
 | `schema_compatibility` | One of the 7 valid values | `schema_compatibility="strict"` → `ValueError` |
 | `level` | Valid level name (`str`) or plain `int`, not `bool` | `level=True` → `TypeError` |
+| `output` | One of `console`, `file`, `both`, `none` (or an alias) | `output="stdout"` → `LogifyxConfigurationError` |
+| `log_file` | Must be `str` and include a file name | `log_file="/"` → `LogifyxConfigurationError` |
 
 > **Note:** `bool` is a subclass of `int` in Python, so `True` and `False` pass a plain `isinstance(x, int)` check. Logifyx rejects them explicitly for all `int` params.
 
@@ -120,6 +143,7 @@ Logifyx validates every value at configuration time and raises immediately on ba
 | bool (`LOG_COLOR`, `LOG_MASK`, `LOG_JSON`) | Only `"true"` or `"false"` (case-insensitive) | `LOG_COLOR=1` → `ValueError` |
 | int env vars | Must parse as integer, must meet minimum | `LOG_MAX_BYTES=abc` → `ValueError` |
 | `LOG_LEVEL` | Must be a valid level name | `LOG_LEVEL=verbose` → `ValueError` |
+| `LOG_OUTPUT` | Must be `console`, `file`, `both`, `none`, or an alias | `LOG_OUTPUT=stdout` → `LogifyxConfigurationError` |
 | `LOG_SCHEMA_COMPATIBILITY` | Must be one of the 7 valid values | `LOG_SCHEMA_COMPATIBILITY=strict` → `ValueError` |
 | `LOG_REMOTE_HEADERS` | Must be a valid JSON object in `.env`; a mapping in YAML | `LOG_REMOTE_HEADERS=not-json` → `ValueError` |
 
@@ -137,7 +161,8 @@ log = Logifyx(
     level="DEBUG",
     color=True,
     json_mode=False,
-    file="myapp.log",
+    output="file",
+    log_file="logs/myapp.log",
     log_dir="logs",
     mask=True,
     max_bytes=10_000_000,
@@ -162,12 +187,15 @@ Loaded automatically from the working directory. Add to `.gitignore` — use it 
 LOG_LEVEL=INFO
 LOG_MASK=true
 
+# Destination
+LOG_OUTPUT=both
+
 # Console
 LOG_COLOR=true
 LOG_JSON=false
 
 # File
-LOG_FILE=app.log
+LOG_FILE=logs/app.log
 LOG_DIR=logs
 LOG_MAX_BYTES=10000000
 LOG_BACKUP_COUNT=5
@@ -193,10 +221,12 @@ Place in the project root. Good for non-secret defaults committed to version con
 LOG_LEVEL: INFO
 LOG_MASK: true
 
+LOG_OUTPUT: both
+
 LOG_COLOR: true
 LOG_JSON: false
 
-LOG_FILE: app.log
+LOG_FILE: logs/app.log
 LOG_DIR: logs
 LOG_MAX_BYTES: 10000000
 LOG_BACKUP_COUNT: 5
