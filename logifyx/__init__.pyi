@@ -18,4 +18,5 @@ from .output import BOTH as BOTH
 from .output import NONE as NONE
 from .output import VALID_OUTPUTS as VALID_OUTPUTS
 
+__version__: str
 __all__: List[str]

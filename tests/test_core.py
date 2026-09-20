@@ -316,3 +316,20 @@ class TestConflictResolution:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestPackageMetadata:
+    """The distribution version must be importable and match the metadata."""
+
+    def test_version_is_exposed(self):
+        import logifyx
+
+        assert isinstance(logifyx.__version__, str)
+        assert logifyx.__version__
+        assert "__version__" in logifyx.__all__
+
+    def test_version_matches_installed_metadata(self):
+        import importlib.metadata
+        import logifyx
+
+        assert logifyx.__version__ == importlib.metadata.version("logifyx")
