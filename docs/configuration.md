@@ -118,6 +118,8 @@ JSON mode output (`json_mode=True`):
 
 Logifyx validates every value at configuration time and raises immediately on bad input — no silent fallbacks.
 
+Value errors below raise `LogifyxConfigurationError`, which subclasses `ValueError` — so `except LogifyxError`, `except LogifyxConfigurationError`, and `except ValueError` all catch them. Type errors raise plain `TypeError`.
+
 ### Python kwargs (`Logifyx()` / `get_logify_logger()`)
 
 | Type | Rule | Bad example → error |
@@ -146,6 +148,44 @@ Logifyx validates every value at configuration time and raises immediately on ba
 | `LOG_OUTPUT` | Must be `console`, `file`, `both`, `none`, or an alias | `LOG_OUTPUT=stdout` → `LogifyxConfigurationError` |
 | `LOG_SCHEMA_COMPATIBILITY` | Must be one of the 7 valid values | `LOG_SCHEMA_COMPATIBILITY=strict` → `ValueError` |
 | `LOG_REMOTE_HEADERS` | Must be a valid JSON object in `.env`; a mapping in YAML | `LOG_REMOTE_HEADERS=not-json` → `ValueError` |
+
+---
+
+## Config File Discovery
+
+Logifyx looks for `.env` and `logifyx.yaml` in the current working directory. Three parameters override that:
+
+| Parameter | Scope |
+|-----------|-------|
+| `config_dir` | Directory searched for both files |
+| `env_file` | Exact path to one `.env`, overrides `config_dir` for that file |
+| `yaml_file` | Exact path to one YAML file, overrides `config_dir` for that file |
+
+```python
+configure_logging(config_dir="/etc/myapp")              # /etc/myapp/.env + /etc/myapp/logifyx.yaml
+configure_logging(yaml_file="/conf/staging.yaml")       # that file specifically
+```
+
+```bash
+logifyx --config-dir /etc/myapp --output file
+```
+
+If a path you supply does not exist, Logifyx warns and falls back to auto-discovery rather than failing:
+
+```
+RuntimeWarning: config_dir='/etc/myap' was given but is not an existing directory.
+Falling back to the current working directory (/app). Any .env or logifyx.yaml
+under '/etc/myap' will NOT be applied.
+```
+
+The warning is raised through `warnings`, not the logging system, so it appears even while logging is still being configured. Promote it to an error in strict deployments:
+
+```python
+import warnings
+warnings.simplefilter("error", RuntimeWarning)
+```
+
+Omitting the paths, or pointing `config_dir` at a valid directory with no config files in it, is the normal zero-config case and never warns.
 
 ---
 

@@ -4,6 +4,8 @@ Tests for configuration loading (config.py).
 
 import os
 import sys
+import warnings
+
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -72,13 +74,14 @@ class TestLoadConfigDefaults:
         assert config["log_dir"] == "logs"
 
     def test_default_file(self):
-        """Unset log_file stays None so each logger can default to <name>.log."""
+        """Unset log_file falls back to app.log inside log_dir."""
         from logifyx.output import resolve_log_target
 
         config = load_config()
-        assert config["log_file"] is None
+        assert config["log_file"] == "app.log"
+        # _file_is_default records that nothing *named* the file, which is what
+        # lets each logger substitute "<name>.log" for the placeholder.
         assert config["_file_is_default"] is True
-        # With nothing configured, the path still resolves to logs/app.log.
         assert resolve_log_target(config["log_dir"], config["log_file"]) == (
             "logs",
             "app.log",
@@ -296,3 +299,120 @@ class TestConfigStructure:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestMisconfiguredPathsWarn:
+    """An explicitly supplied config path that does not exist must not pass silently."""
+
+    @pytest.fixture(autouse=True)
+    def _forget_previous_warnings(self):
+        from logifyx.config import _clear_path_warnings
+        _clear_path_warnings()
+        yield
+        _clear_path_warnings()
+
+    def test_missing_config_dir_warns_and_falls_back(self, tmp_path):
+        missing = str(tmp_path / "does-not-exist")
+
+        with pytest.warns(RuntimeWarning, match="config_dir"):
+            config = load_config(config_dir=missing)
+
+        # Still usable — the fallback is to the working directory.
+        assert config["level"]
+
+    def test_missing_env_file_warns(self, tmp_path):
+        with pytest.warns(RuntimeWarning, match="env_file"):
+            load_config(env_file=str(tmp_path / "nope.env"))
+
+    def test_missing_yaml_file_warns(self, tmp_path):
+        with pytest.warns(RuntimeWarning, match="yaml_file"):
+            load_config(yaml_file=str(tmp_path / "nope.yaml"))
+
+    def test_config_dir_pointing_at_a_file_warns(self, tmp_path):
+        not_a_dir = tmp_path / "a-file.txt"
+        not_a_dir.write_text("x", encoding="utf-8")
+
+        with pytest.warns(RuntimeWarning, match="not an existing directory"):
+            load_config(config_dir=str(not_a_dir))
+
+    def test_warning_names_the_bad_value(self, tmp_path):
+        missing = str(tmp_path / "typo-dir")
+
+        with pytest.warns(RuntimeWarning) as caught:
+            load_config(config_dir=missing)
+
+        message = str(caught[0].message)
+        assert "typo-dir" in message
+        assert "will NOT be applied" in message
+
+    def test_valid_paths_do_not_warn(self, tmp_path):
+        (tmp_path / "logifyx.yaml").write_text("LOG_LEVEL: WARNING\n", encoding="utf-8")
+        (tmp_path / ".env").write_text("LOG_MASK=true\n", encoding="utf-8")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            config = load_config(config_dir=str(tmp_path))
+
+        assert config["level"] == "WARNING"
+
+    def test_default_lookup_never_warns(self, tmp_path, monkeypatch):
+        """Omitting the paths entirely is the normal zero-config case."""
+        monkeypatch.chdir(tmp_path)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            load_config()
+
+    def test_absent_config_files_do_not_warn(self, tmp_path):
+        """An existing dir with no .env/logifyx.yaml in it is fine, not a mistake."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            load_config(config_dir=str(tmp_path))
+
+    def test_same_bad_path_warns_only_once(self, tmp_path):
+        """load_config runs once per logger; one typo must not spam the console."""
+        missing = str(tmp_path / "typo")
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            for _ in range(5):
+                load_config(config_dir=missing)
+
+        runtime = [w for w in caught if w.category is RuntimeWarning]
+        assert len(runtime) == 1
+
+    def test_different_bad_paths_each_warn(self, tmp_path):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            load_config(config_dir=str(tmp_path / "typo-a"))
+            load_config(config_dir=str(tmp_path / "typo-b"))
+
+        runtime = [w for w in caught if w.category is RuntimeWarning]
+        assert len(runtime) == 2
+
+    def test_warning_points_at_the_caller_not_logifyx(self, tmp_path):
+        """The typo is in the caller's code, so that is the line to blame."""
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            load_config(config_dir=str(tmp_path / "typo"))       # <- this line
+
+        blamed = os.path.abspath(caught[0].filename)
+        assert blamed == os.path.abspath(__file__), blamed
+        assert "logifyx" not in os.path.basename(blamed)
+
+    def test_reset_logging_re_enables_the_warning(self, tmp_path):
+        from logifyx import reset_logging
+
+        missing = str(tmp_path / "typo")
+
+        with warnings.catch_warnings(record=True) as first:
+            warnings.simplefilter("always")
+            load_config(config_dir=missing)
+        assert len([w for w in first if w.category is RuntimeWarning]) == 1
+
+        reset_logging()
+
+        with warnings.catch_warnings(record=True) as second:
+            warnings.simplefilter("always")
+            load_config(config_dir=missing)
+        assert len([w for w in second if w.category is RuntimeWarning]) == 1

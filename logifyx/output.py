@@ -139,11 +139,6 @@ def owned_handlers(logger: logging.Logger) -> List[logging.Handler]:
     return [h for h in logger.handlers if is_owned(h)]
 
 
-def foreign_handlers(logger: logging.Logger) -> List[logging.Handler]:
-    """Handlers on ``logger`` that Logifyx did not create (never touched)."""
-    return [h for h in logger.handlers if not is_owned(h)]
-
-
 # --------------------------------------------------------------------------- #
 # Log file path resolution
 # --------------------------------------------------------------------------- #
@@ -240,7 +235,6 @@ __all__ = [
     "is_owned",
     "role_of",
     "owned_handlers",
-    "foreign_handlers",
     "DEFAULT_LOG_FILE",
     "resolve_log_target",
     "ensure_log_directory",

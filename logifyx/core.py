@@ -6,28 +6,18 @@ import threading
 import queue
 import atexit
 import weakref
-from .config import load_config
+from .config import load_config, _clear_path_warnings
 from .formatter import get_formatter
 from .filters import MaskFilter
 from .handler import get_handlers, validate_file_target
-from .exceptions import (
-    LogifyxConfigurationError,
-    LogifyxError,
-    LogifyxFileError,
-)
+from .exceptions import LogifyxConfigurationError
 from .output import (
-    BOTH,
-    CONSOLE,
     DEFAULT_OUTPUT,
-    FILE,
-    NONE,
     ROLE_CONSOLE,
     ROLE_KAFKA,
     ROLE_NULL,
     ROLE_QUEUE,
     ROLE_REMOTE,
-    VALID_OUTPUTS,
-    foreign_handlers,
     is_owned,
     mark_owned,
     normalize_output,
@@ -49,7 +39,7 @@ def _normalize_and_validate_level(level: Union[int, str]) -> Union[int, str]:
     if isinstance(level, str):
         level_upper = level.upper()
         if level_upper not in _VALID_LEVELS:
-            raise ValueError(
+            raise LogifyxConfigurationError(
                 f"Invalid log level: {level!r}. Must be one of: {', '.join(sorted(_VALID_LEVELS))}"
             )
         return level_upper
@@ -290,7 +280,7 @@ def _validate_options(
                     f"{param} must be an int, got {value!r} ({type(value).__name__})"
                 )
             if value < min_val:
-                raise ValueError(
+                raise LogifyxConfigurationError(
                     f"{param} must be >= {min_val}, got {value!r}"
                 )
 
@@ -326,7 +316,7 @@ def _validate_options(
                 f"schema_compatibility must be a str, got {schema_compatibility!r} ({type(schema_compatibility).__name__})"
             )
         if schema_compatibility.upper() not in _VALID_COMPATIBILITY:
-            raise ValueError(
+            raise LogifyxConfigurationError(
                 f"schema_compatibility must be one of {sorted(_VALID_COMPATIBILITY)}, "
                 f"got {schema_compatibility!r}"
             )
@@ -339,7 +329,7 @@ def _validate_options(
             )
         if isinstance(level, str):
             if level.upper() not in _VALID_LEVELS:
-                raise ValueError(
+                raise LogifyxConfigurationError(
                     f"level must be one of {sorted(_VALID_LEVELS)}, got {level!r}"
                 )
         elif not isinstance(level, int):
@@ -1313,6 +1303,10 @@ def reset_logging() -> None:
     """
     with _global_lock:
         _global_overrides.clear()
+
+    # A fresh start should warn again about a bad path, not stay quiet
+    # because an earlier configuration already reported it.
+    _clear_path_warnings()
 
     for logger in _live_loggers():
         with logger._reload_lock:

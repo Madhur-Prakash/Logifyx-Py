@@ -1,9 +1,13 @@
 import os
+import sys
+import warnings
 import yaml
 import json
 from pathlib import Path
+from types import FrameType
 from typing import Optional
 from dotenv import dotenv_values
+from .exceptions import LogifyxConfigurationError
 from .output import DEFAULT_OUTPUT, normalize_output
 
 CONFIG_FILE = "logifyx.yaml"
@@ -29,18 +33,92 @@ _VALID_COMPATIBILITY = {
 }
 
 
-def _resolve_path(path: Optional[str]) -> Optional[Path]:
+# Bad config paths already warned about, so one typo produces one warning even
+# though load_config() runs once per logger plus once for eager validation.
+_warned_paths: set = set()
+
+
+def _clear_path_warnings() -> None:
+    """Forget which bad paths have been warned about (used by reset_logging)."""
+    _warned_paths.clear()
+
+
+def _external_stacklevel() -> int:
+    """
+    Stack depth of the first frame outside the logifyx package.
+
+    Without this the warning is attributed to whichever internal function
+    happened to call load_config(), which tells the reader nothing. The typo is
+    in *their* code, so that is the line the warning should point at.
+    """
+    package_dir = os.path.dirname(os.path.abspath(__file__))
+    # warnings.warn() runs inside _warn_bad_path, which is stacklevel 1.
+    frame: Optional[FrameType] = sys._getframe(1)   # == _warn_bad_path
+    level = 1
+    while frame is not None:
+        caller = os.path.dirname(os.path.abspath(frame.f_code.co_filename))
+        if caller != package_dir:
+            return level
+        frame = frame.f_back
+        level += 1
+    return 2
+
+
+def _warn_bad_path(key: tuple, message: str) -> None:
+    """Warn once per distinct bad path, pointing at the caller's own line."""
+    if key in _warned_paths:
+        return
+    _warned_paths.add(key)
+    warnings.warn(message, RuntimeWarning, stacklevel=_external_stacklevel())
+
+
+def _resolve_path(path: Optional[str], param: str) -> Optional[Path]:
+    """
+    Resolve an explicitly supplied config file path.
+
+    A missing file is not fatal — Logifyx falls back to auto-discovery — but it
+    is always a mistake worth surfacing, because the silent alternative is an
+    application that runs on defaults and only reveals the typo through wrong log
+    levels in production.
+
+    The warning goes through `warnings`, never through the logging system, which
+    at this point is still being configured.
+    """
     if not path:
         return None
+
     resolved = Path(path).expanduser()
-    return resolved if resolved.is_file() else None
+    if resolved.is_file():
+        return resolved
+
+    _warn_bad_path(
+        (param, str(resolved)),
+        f"{param}={path!r} was given but is not an existing file. "
+        f"Ignoring it and falling back to auto-discovery. Any settings in that "
+        f"file will NOT be applied.",
+    )
+    return None
 
 
 def _resolve_config_dir(config_dir: Optional[str]) -> Path:
+    """
+    Resolve the directory searched for .env and logifyx.yaml.
+
+    Defaults to the current working directory. An explicitly supplied directory
+    that does not exist warns and falls back, for the same reason as above.
+    """
     if config_dir:
         candidate = Path(config_dir).expanduser()
-        if candidate.exists() and candidate.is_dir():
+        if candidate.is_dir():
             return candidate.resolve()
+
+        _warn_bad_path(
+            ("config_dir", str(candidate)),
+            f"config_dir={config_dir!r} was given but is not an existing directory. "
+            f"Falling back to the current working directory "
+            f"({Path.cwd()}). Any .env or logifyx.yaml under {config_dir!r} "
+            f"will NOT be applied.",
+        )
     return Path.cwd().resolve()
 
 
@@ -57,7 +135,7 @@ def _as_bool(key: str, value, default: bool) -> bool:
             return True
         if s == "false":
             return False
-    raise ValueError(
+    raise LogifyxConfigurationError(
         f"{key} must be true or false, got {value!r} ({type(value).__name__})"
     )
 
@@ -69,11 +147,11 @@ def _as_int(key: str, value, default: int, min_val: int = 0) -> int:
     try:
         result = int(value)
     except (ValueError, TypeError):
-        raise ValueError(
+        raise LogifyxConfigurationError(
             f"{key} must be an integer, got {value!r} ({type(value).__name__})"
         )
     if result < min_val:
-        raise ValueError(
+        raise LogifyxConfigurationError(
             f"{key} must be >= {min_val}, got {result!r}"
         )
     return result
@@ -86,11 +164,11 @@ def load_config(
 ):
     base_dir = _resolve_config_dir(config_dir)
 
-    env_path = _resolve_path(env_file) or (base_dir / ENV_FILE if (base_dir / ENV_FILE).is_file() else None)
+    env_path = _resolve_path(env_file, "env_file") or (base_dir / ENV_FILE if (base_dir / ENV_FILE).is_file() else None)
     env_values = dotenv_values(env_path) if env_path else {}
     yaml_config: dict = {}
 
-    config_path = _resolve_path(yaml_file) or (base_dir / CONFIG_FILE if (base_dir / CONFIG_FILE).is_file() else None)
+    config_path = _resolve_path(yaml_file, "yaml_file") or (base_dir / CONFIG_FILE if (base_dir / CONFIG_FILE).is_file() else None)
 
     # Auto-load logifyx.yaml if it exists
     if config_path:
@@ -124,7 +202,7 @@ def load_config(
     # level
     level = _resolve_value("LOG_LEVEL", "INFO")
     if isinstance(level, str) and level.upper() not in _VALID_LEVELS:
-        raise ValueError(
+        raise LogifyxConfigurationError(
             f"LOG_LEVEL must be one of {sorted(_VALID_LEVELS)}, got {level!r}"
         )
     config["level"] = level.upper() if isinstance(level, str) else level
@@ -158,7 +236,7 @@ def load_config(
     if isinstance(compatibility, str):
         compatibility = compatibility.upper()
     if compatibility not in _VALID_COMPATIBILITY:
-        raise ValueError(
+        raise LogifyxConfigurationError(
             f"LOG_SCHEMA_COMPATIBILITY must be one of {sorted(_VALID_COMPATIBILITY)}, "
             f"got {compatibility!r}"
         )
@@ -174,18 +252,18 @@ def load_config(
         try:
             parsed = json.loads(env_headers)
         except json.JSONDecodeError:
-            raise ValueError(
+            raise LogifyxConfigurationError(
                 f"LOG_REMOTE_HEADERS must be a valid JSON object, got {env_headers!r}"
             )
         if not isinstance(parsed, dict):
-            raise ValueError(
+            raise LogifyxConfigurationError(
                 f"LOG_REMOTE_HEADERS must be a JSON object (dict), got {type(parsed).__name__}"
             )
         config["remote_headers"] = parsed
     else:
         yaml_headers = yaml_config.get("LOG_REMOTE_HEADERS")
         if yaml_headers is not None and not isinstance(yaml_headers, dict):
-            raise ValueError(
+            raise LogifyxConfigurationError(
                 f"LOG_REMOTE_HEADERS in logifyx.yaml must be a mapping, got {type(yaml_headers).__name__}"
             )
         config["remote_headers"] = yaml_headers if isinstance(yaml_headers, dict) else {"Content-Type": "application/json"}

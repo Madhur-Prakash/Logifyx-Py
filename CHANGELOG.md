@@ -108,6 +108,33 @@ Passing `file=` now raises `TypeError`. The `LOG_FILE` env var and YAML key keep
 
 `reload()` and `reload_from_file()` previously removed and closed **every** handler on the logger, including ones the application had attached. They now only tear down Logifyx-owned handlers.
 
+#### Misconfigured config paths warn instead of passing silently
+
+`config_dir`, `env_file`, and `yaml_file` have always fallen back to auto-discovery when the path does not exist. That fallback is kept (removing it would break callers who rely on it), but an explicitly supplied path that does not resolve now emits a `RuntimeWarning` naming the bad value:
+
+```python
+configure_logging(config_dir="/etc/myap")   # typo for /etc/myapp
+
+# RuntimeWarning: config_dir='/etc/myap' was given but is not an existing
+# directory. Falling back to the current working directory (/app). Any .env or
+# logifyx.yaml under '/etc/myap' will NOT be applied.
+```
+
+Previously a typo in a deployment silently loaded whatever happened to be in the working directory — usually nothing — and the only symptom was wrong log levels in production.
+
+The warning is raised once per distinct bad path — `load_config()` runs once per logger plus once for eager validation, so a single typo would otherwise print several times — and is attributed to the caller's own line rather than to whichever Logifyx internal happened to call `load_config()`:
+
+```
+main.py:6: RuntimeWarning: config_dir='etc-myap' was given but is not an existing directory...
+  configure_logging(config_dir="etc-myap", log_file="logs/app.log")
+```
+
+Warnings go through `warnings`, never through the logging system, which is still being configured at that point. `reset_logging()` clears the warned-path cache. Omitting the paths entirely, or pointing at a valid directory that simply has no `.env` / `logifyx.yaml`, is the normal zero-config case and stays silent.
+
+#### Configuration errors raise the typed exception
+
+Every invalid configuration value — from kwargs, env vars, `.env`, or `logifyx.yaml` — now raises `LogifyxConfigurationError` instead of a bare `ValueError`, so `except LogifyxError` catches all of them as the documentation describes. It subclasses `ValueError`, so existing `except ValueError` handlers are unaffected. Type errors continue to raise `TypeError`.
+
 #### Async listener no longer drops other loggers' handlers
 
 Reconfiguring one logger used to stop the shared `QueueListener` outright, silently disabling remote/Kafka delivery for every other logger. The listener now tracks its handler set and is rebuilt around it, so only the reconfigured logger's async handlers are detached.
